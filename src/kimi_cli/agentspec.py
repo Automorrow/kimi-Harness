@@ -200,5 +200,22 @@ def _load_agent_spec(agent_file: Path) -> AgentSpec:
             base_agent_spec.exclude_tools = agent_spec.exclude_tools
         if not isinstance(agent_spec.subagents, Inherit):
             base_agent_spec.subagents = agent_spec.subagents
+        # --- 合并 Harness 扩展字段 ---
+        if agent_spec.permission_mode is not None:
+            base_agent_spec.permission_mode = agent_spec.permission_mode
+        if agent_spec.max_turns is not None:
+            base_agent_spec.max_turns = agent_spec.max_turns
+        if agent_spec.memory is not None:
+            base_agent_spec.memory = agent_spec.memory
+        if agent_spec.isolation is not None:
+            base_agent_spec.isolation = agent_spec.isolation
+        if agent_spec.skills is not None:
+            base_agent_spec.skills = agent_spec.skills
+        if agent_spec.hooks is not None:
+            base_agent_spec.hooks = agent_spec.hooks
+        if agent_spec.background is not None:
+            base_agent_spec.background = agent_spec.background
+        if agent_spec.color is not None:
+            base_agent_spec.color = agent_spec.color
         agent_spec = base_agent_spec
     return agent_spec
