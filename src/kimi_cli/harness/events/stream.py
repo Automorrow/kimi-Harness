@@ -9,9 +9,8 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, Literal, Union
-
+from datetime import UTC, datetime
+from typing import Any, Literal
 
 # ---------------------------------------------------------------------------
 # 事件类型定义
@@ -23,7 +22,7 @@ class AssistantTextDelta:
     """增量助手文本输出。"""
 
     text: str
-    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    timestamp: datetime = field(default_factory=lambda: datetime.now(UTC))
 
 
 @dataclass(frozen=True)
@@ -33,7 +32,7 @@ class ToolExecutionStarted:
     tool_name: str
     tool_input: dict[str, Any]
     tool_call_id: str = ""
-    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    timestamp: datetime = field(default_factory=lambda: datetime.now(UTC))
 
 
 @dataclass(frozen=True)
@@ -45,7 +44,7 @@ class ToolExecutionCompleted:
     is_error: bool = False
     tool_call_id: str = ""
     duration_ms: float = 0.0
-    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    timestamp: datetime = field(default_factory=lambda: datetime.now(UTC))
 
 
 @dataclass(frozen=True)
@@ -54,7 +53,7 @@ class ErrorEvent:
 
     message: str
     recoverable: bool = True
-    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    timestamp: datetime = field(default_factory=lambda: datetime.now(UTC))
 
 
 @dataclass(frozen=True)
@@ -62,7 +61,7 @@ class StatusEvent:
     """状态事件。"""
 
     message: str
-    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    timestamp: datetime = field(default_factory=lambda: datetime.now(UTC))
 
 
 @dataclass(frozen=True)
@@ -83,7 +82,7 @@ class CompactProgressEvent:
     trigger: Literal["auto", "manual", "reactive"] = "auto"
     message: str | None = None
     attempt: int | None = None
-    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    timestamp: datetime = field(default_factory=lambda: datetime.now(UTC))
 
 
 @dataclass(frozen=True)
@@ -94,7 +93,7 @@ class SubagentEvent:
     agent_type: str
     event_type: Literal["started", "completed", "failed", "output"]
     message: str = ""
-    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    timestamp: datetime = field(default_factory=lambda: datetime.now(UTC))
 
 
 @dataclass(frozen=True)
@@ -103,7 +102,7 @@ class TurnEvent:
 
     event_type: Literal["turn_begin", "turn_end", "step_begin", "step_end", "step_interrupted"]
     turn_count: int = 0
-    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    timestamp: datetime = field(default_factory=lambda: datetime.now(UTC))
 
 
 @dataclass(frozen=True)
@@ -113,24 +112,24 @@ class PermissionEvent:
     tool_name: str
     decision: Literal["allowed", "denied", "confirm"]
     reason: str = ""
-    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    timestamp: datetime = field(default_factory=lambda: datetime.now(UTC))
 
 
 # ---------------------------------------------------------------------------
 # 联合类型
 # ---------------------------------------------------------------------------
 
-HarnessStreamEvent = Union[
-    AssistantTextDelta,
-    ToolExecutionStarted,
-    ToolExecutionCompleted,
-    ErrorEvent,
-    StatusEvent,
-    CompactProgressEvent,
-    SubagentEvent,
-    TurnEvent,
-    PermissionEvent,
-]
+HarnessStreamEvent = (
+    AssistantTextDelta
+    | ToolExecutionStarted
+    | ToolExecutionCompleted
+    | ErrorEvent
+    | StatusEvent
+    | CompactProgressEvent
+    | SubagentEvent
+    | TurnEvent
+    | PermissionEvent
+)
 
 # 事件类型名称映射（用于 JSON 序列化）
 _EVENT_TYPE_MAP: dict[type, str] = {
@@ -180,7 +179,7 @@ def event_to_json(event: HarnessStreamEvent) -> str:
 def event_from_dict(data: dict[str, Any]) -> HarnessStreamEvent:
     """从字典反序列化事件。"""
     event_type = data.get("type", "")
-    ts = datetime.fromisoformat(data["timestamp"]) if "timestamp" in data else datetime.now(timezone.utc)
+    ts = datetime.fromisoformat(data["timestamp"]) if "timestamp" in data else datetime.now(UTC)
 
     match event_type:
         case "assistant_text_delta":
@@ -267,14 +266,15 @@ class WireToStreamAdapter:
         # 延迟导入以避免循环依赖
         try:
             from kimi_cli.wire.types import (
-                ContentPart,
-                TextPart,
-                ToolCall,
-                ToolResult as WireToolResult,
-                TurnBegin,
-                TurnEnd,
                 StepBegin,
                 StepInterrupted,
+                TextPart,
+                ToolCall,
+                TurnBegin,
+                TurnEnd,
+            )
+            from kimi_cli.wire.types import (
+                ToolResult as WireToolResult,
             )
         except ImportError:
             return None

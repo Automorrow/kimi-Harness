@@ -12,9 +12,8 @@ import os
 import re
 import sys
 from contextlib import contextmanager
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -282,7 +281,11 @@ class MemoryManager:
                     content=content,
                 ))
             except OSError as exc:
-                logger.warning("Failed to read user memory file {path}: {error}", path=path, error=exc)
+                logger.warning(
+                    "Failed to read user memory file {path}: {error}",
+                    path=path,
+                    error=exc,
+                )
 
         return entries
 

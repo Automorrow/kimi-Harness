@@ -31,3 +31,26 @@ __all__ = [
     "MagicWordResult",
     "detect_magic_word",
 ]
+
+
+def __getattr__(name: str):
+    """延迟导入，避免循环依赖导致的 segfault。"""
+    _LAZY_MAP = {
+        "PermissionChecker": "kimi_cli.harness.permissions.checker",
+        "PermissionMode": "kimi_cli.harness.permissions.checker",
+        "PermissionSettings": "kimi_cli.harness.permissions.checker",
+        "MemoryManager": "kimi_cli.harness.memory.manager",
+        "SandboxExecutor": "kimi_cli.harness.sandbox.executor",
+        "SandboxMode": "kimi_cli.harness.sandbox.executor",
+        "TeamCoordinator": "kimi_cli.harness.coordinator.team",
+        "ToolRegistry": "kimi_cli.harness.tools.base",
+        "WireToStreamAdapter": "kimi_cli.harness.events.stream",
+        "MagicWordResult": "kimi_cli.harness.magic_word",
+        "detect_magic_word": "kimi_cli.harness.magic_word",
+    }
+    if name in _LAZY_MAP:
+        import importlib
+
+        module = importlib.import_module(_LAZY_MAP[name])
+        return getattr(module, name)
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

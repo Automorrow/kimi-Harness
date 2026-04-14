@@ -12,7 +12,7 @@ import time
 import uuid
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Literal
 
 if TYPE_CHECKING:
     from kimi_cli.soul.agent import Runtime
@@ -199,11 +199,12 @@ class TeamCoordinator:
         async def _execute_single(member: TeamMember) -> TaskResult:
             t0 = time.monotonic()
             try:
+                from kosong.tooling import ToolError, ToolOk
+
                 from kimi_cli.subagents.runner import (
                     ForegroundRunRequest,
                     ForegroundSubagentRunner,
                 )
-                from kosong.tooling import ToolError, ToolOk
 
                 runner = ForegroundSubagentRunner(self._runtime)  # type: ignore[arg-type]
                 req = ForegroundRunRequest(

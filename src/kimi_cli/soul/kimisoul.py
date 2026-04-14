@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import time
 import uuid
 from collections.abc import Awaitable, Callable, Sequence
@@ -482,12 +483,10 @@ class KimiSoul:
             )
 
             settings = create_default_settings()
-            try:
+            with contextlib.suppress(ValueError):
                 settings.mode = PermissionMode(permission_mode)
-            except ValueError:
-                pass
             # 幂等保护：仅在未设置时才创建 PermissionChecker
-            if runtime.approval._permission_checker is None:
+            if not runtime.approval.has_permission_checker:
                 runtime.approval.set_permission_checker(PermissionChecker(settings))
                 logger.info(
                     "Harness magic word: PermissionChecker enabled, mode={mode}",

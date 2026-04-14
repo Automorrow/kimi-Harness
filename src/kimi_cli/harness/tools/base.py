@@ -6,7 +6,6 @@
 
 from __future__ import annotations
 
-import json
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -322,10 +321,12 @@ class KosongToolAdapter(BaseTool):
         from kosong.tooling import ToolError, ToolOk
 
         if isinstance(ret, ToolOk):
+            from kosong.message import TextPart
+
             output_parts: list[str] = []
             if hasattr(ret, "output") and ret.output:
                 for part in ret.output:
-                    if hasattr(part, "text"):
+                    if isinstance(part, TextPart):
                         output_parts.append(part.text)
                     elif isinstance(part, str):
                         output_parts.append(part)

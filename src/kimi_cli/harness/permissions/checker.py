@@ -11,7 +11,6 @@ import logging
 import os
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -170,7 +169,7 @@ class PermissionChecker:
         """动态切换权限模式。"""
         old_mode = self._settings.mode
         self._settings.mode = mode
-        logger.info("Permission mode changed: {old} -> {new}", old=old_mode, new=mode)
+        logger.info("Permission mode changed: %s -> %s", old_mode, mode)
 
     def evaluate(
         self,

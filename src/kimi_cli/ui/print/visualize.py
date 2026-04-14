@@ -151,7 +151,7 @@ class HarnessStreamPrinter(Printer):
         except Exception:
             import sys
 
-            print(f"[harness-bridge-error]", file=sys.stderr, flush=True)
+            print("[harness-bridge-error]", file=sys.stderr, flush=True)
 
     def flush(self) -> None:
         pass
@@ -196,10 +196,11 @@ async def visualize(output_format: OutputFormat, final_only: bool, wire: Wire) -
             case "text":
                 handler = TextPrinter()
             case "stream-json":
-                if _harness_stream:
-                    handler = HarnessStreamPrinter()
-                else:
-                    handler = JsonPrinter()
+                handler = (
+                    HarnessStreamPrinter()
+                    if _harness_stream
+                    else JsonPrinter()
+                )
 
     wire_ui = wire.ui_side(merge=True)
     while True:

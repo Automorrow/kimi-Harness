@@ -6,14 +6,13 @@
 
 from __future__ import annotations
 
+import fnmatch
 import logging
 import shutil
-import subprocess
 from abc import ABC, abstractmethod
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -115,7 +114,7 @@ class NoopSandboxExecutor(SandboxExecutor):
                 stderr=stderr.decode("utf-8", errors="replace"),
                 exit_code=proc.returncode or 0,
             )
-        except asyncio.TimeoutError:
+        except TimeoutError:
             proc.kill()  # type: ignore[union-attr]
             await proc.wait()  # type: ignore[union-attr]
             return SandboxResult(
@@ -191,8 +190,14 @@ class CommandSandboxExecutor(SandboxExecutor):
 
         # 检查 rm + 递归删除根目录
         if "rm" in tokens and ("-r" in tokens or "-rf" in tokens or "--recursive" in tokens):
+            _system_prefixes = (
+                "/etc", "/var", "/usr", "/bin", "/sbin",
+                "/boot", "/lib", "/sys", "/proc", "/dev",
+            )
             for t in tokens:
-                if t.startswith("/") and (t == "/" or t.startswith("/etc") or t.startswith("/var") or t.startswith("/usr") or t.startswith("/bin") or t.startswith("/sbin") or t.startswith("/boot") or t.startswith("/lib") or t.startswith("/sys") or t.startswith("/proc") or t.startswith("/dev")):
+                if t.startswith("/") and (
+                    t == "/" or t.startswith(tuple(_system_prefixes))
+                ):
                     return True, f"rm recursive on system path: {t}"
 
         # 检查 fork bomb
@@ -301,7 +306,7 @@ class DockerSandboxExecutor(SandboxExecutor):
                 stderr=stderr.decode("utf-8", errors="replace"),
                 exit_code=proc.returncode or 0,
             )
-        except asyncio.TimeoutError:
+        except TimeoutError:
             proc.kill()  # type: ignore[union-attr]
             await proc.wait()  # type: ignore[union-attr]
             return SandboxResult(

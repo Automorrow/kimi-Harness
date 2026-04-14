@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import uuid
 from collections.abc import Callable
-from typing import Literal
+from typing import Any, Literal
 
 from kimi_cli.approval_runtime import (
     ApprovalCancelledError,
@@ -100,6 +100,10 @@ class Approval:
         self._permission_checker = checker
 
     @property
+    def has_permission_checker(self) -> bool:
+        return self._permission_checker is not None
+
+    @property
     def runtime(self) -> ApprovalRuntime:
         return self._runtime
 
@@ -182,7 +186,10 @@ class Approval:
                 else:
                     _harness_confirmed = False
             except Exception:
-                logger.debug("Harness permission check failed, falling back to default", exc_info=True)
+                logger.debug(
+                    "Harness permission check failed, falling back to default",
+                    exc_info=True,
+                )
                 _harness_confirmed = False
         else:
             _harness_confirmed = False
