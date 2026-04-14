@@ -269,7 +269,15 @@ class KosongToolAdapter(BaseTool):
         self._inner = kosong_tool
         self.name = kosong_tool.name
         self.description = kosong_tool.description or "No description provided."
-        self.input_model = _build_dynamic_input_model(kosong_tool.parameters)
+        # CallableTool (继承 Tool) 有 parameters (JSON Schema dict)
+        # CallableTool2 有 params (Pydantic model type)，需要转换为 JSON Schema
+        if hasattr(kosong_tool, "parameters"):
+            schema = kosong_tool.parameters  # type: ignore[attr-defined]
+        elif hasattr(kosong_tool, "params") and kosong_tool.params is not None:
+            schema = kosong_tool.params.model_json_schema()
+        else:
+            schema = {"type": "object", "properties": {}}
+        self.input_model = _build_dynamic_input_model(schema)
 
     async def execute(
         self,

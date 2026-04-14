@@ -537,18 +537,37 @@ class KimiSoul:
         turn_finished = False
 
         # --- Harness 魔法词检测 ---
+        _magic_detected = False
         if isinstance(user_input, str):
             from kimi_cli.harness.magic_word import detect_magic_word
 
             magic_result = detect_magic_word(user_input)
             if magic_result.detected:
-                # cleaned_input 为空时使用空字符串而非回退到含魔法词的原始输入
                 user_input = magic_result.cleaned_input if magic_result.cleaned_input else ""
-                self._apply_harness_capabilities(
-                    permission_mode=magic_result.permission_mode,
-                    memory=magic_result.memory,
-                    isolation=magic_result.isolation,
-                )
+                _magic_detected = True
+        elif isinstance(user_input, list):
+            # list[ContentPart] 情况：检查第一个 TextPart 是否包含魔法词
+            from kosong.message import TextPart
+
+            from kimi_cli.harness.magic_word import detect_magic_word
+
+            for i, part in enumerate(user_input):
+                if isinstance(part, TextPart):
+                    magic_result = detect_magic_word(part.text)
+                    if magic_result.detected:
+                        if magic_result.cleaned_input:
+                            user_input[i] = TextPart(type="text", text=magic_result.cleaned_input)
+                        else:
+                            user_input.pop(i)
+                        _magic_detected = True
+                        break
+
+        if _magic_detected:
+            self._apply_harness_capabilities(
+                permission_mode="plan",
+                memory="global",
+                isolation="command",
+            )
 
         if get_current_approval_source_or_none() is None:
             approval_source_token = set_current_approval_source(
