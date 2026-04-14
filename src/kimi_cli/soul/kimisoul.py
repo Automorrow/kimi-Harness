@@ -594,6 +594,10 @@ class KimiSoul:
                 memory="global",
                 isolation="command",
             )
+            # 魔法词 permission_mode=plan 时同步激活 KimiSoul 的 plan mode，
+            # 确保 UI 显示 plan mode 指示器且用户可以通过 ExitPlanMode 退出
+            if not self._plan_mode:
+                self._set_plan_mode(True, source="manual")
 
         if get_current_approval_source_or_none() is None:
             approval_source_token = set_current_approval_source(
