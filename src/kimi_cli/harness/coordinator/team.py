@@ -12,7 +12,10 @@ import time
 import uuid
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Any, Literal
+
+if TYPE_CHECKING:
+    from kimi_cli.soul.agent import Runtime
 
 logger = logging.getLogger(__name__)
 
@@ -116,9 +119,14 @@ class TeamCoordinator:
         results = await coordinator.dispatch(team, "重构认证模块")
     """
 
-    def __init__(self) -> None:
+    def __init__(self, runtime: Runtime | None = None) -> None:
+        self._runtime = runtime
         self._teams: dict[str, Team] = {}
         self._round_robin_indices: dict[str, int] = {}
+
+    def set_runtime(self, runtime: Runtime) -> None:
+        """设置 Runtime 引用（由 Runtime.__post_init__ 回填）。"""
+        self._runtime = runtime
 
     def create_team(
         self,
@@ -176,6 +184,10 @@ class TeamCoordinator:
             logger.error("Team not found: {name}", name=team_name)
             return []
 
+        if self._runtime is None:
+            logger.error("Cannot dispatch: TeamCoordinator has no Runtime reference")
+            return []
+
         targets = self._select_targets(team, strategy)
         if not targets:
             logger.warning("No targets selected for task dispatch")
@@ -187,17 +199,45 @@ class TeamCoordinator:
         async def _execute_single(member: TeamMember) -> TaskResult:
             t0 = time.monotonic()
             try:
-                # 实际执行需要与 Runtime 集成
-                # 这里提供框架，具体执行逻辑由 Runtime 注入
-                output = f"[Task {task_id}] Dispatched to {member.agent_type} ({member.agent_id}): {task}"
-                return TaskResult(
-                    agent_id=member.agent_id,
-                    task_id=task_id,
-                    output=output,
-                    is_error=False,
-                    duration_ms=(time.monotonic() - t0) * 1000,
+                from kimi_cli.subagents.runner import (
+                    ForegroundRunRequest,
+                    ForegroundSubagentRunner,
                 )
+                from kosong.tooling import ToolError, ToolOk
+
+                runner = ForegroundSubagentRunner(self._runtime)  # type: ignore[arg-type]
+                req = ForegroundRunRequest(
+                    description=f"[Team:{team.name}] {task[:80]}",
+                    prompt=task,
+                    requested_type=member.agent_type,
+                    model=None,
+                    resume=None,
+                )
+                result = await runner.run(req)
+
+                if isinstance(result, ToolOk):
+                    return TaskResult(
+                        agent_id=member.agent_id,
+                        task_id=task_id,
+                        output=result.output,
+                        is_error=False,
+                        duration_ms=(time.monotonic() - t0) * 1000,
+                    )
+                else:
+                    return TaskResult(
+                        agent_id=member.agent_id,
+                        task_id=task_id,
+                        output=result.message if isinstance(result, ToolError) else str(result),
+                        is_error=True,
+                        duration_ms=(time.monotonic() - t0) * 1000,
+                    )
             except Exception as e:
+                logger.error(
+                    "Task {task_id} failed on {agent}: {error}",
+                    task_id=task_id,
+                    agent=member.agent_type,
+                    error=e,
+                )
                 return TaskResult(
                     agent_id=member.agent_id,
                     task_id=task_id,

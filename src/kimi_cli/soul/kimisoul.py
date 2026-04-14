@@ -458,6 +458,68 @@ class KimiSoul:
             raise LLMNotSupported(self._runtime.llm, list(missing_caps))
         await self._context.append_message(message)
 
+    def _apply_harness_capabilities(
+        self,
+        *,
+        permission_mode: str,
+        memory: str,
+        isolation: str,
+    ) -> None:
+        """动态启用 Harness 能力（由魔法词触发）。
+
+        复用 load_agent() 中的 Harness 初始化逻辑，
+        但在运行时动态应用，而非在 agent 加载时静态配置。
+        所有初始化都有幂等保护，多次调用安全。
+        """
+        runtime = self._runtime
+
+        # 1. 启用 PermissionChecker
+        try:
+            from kimi_cli.harness.permissions.checker import (
+                PermissionChecker,
+                PermissionMode,
+                create_default_settings,
+            )
+
+            settings = create_default_settings()
+            try:
+                settings.mode = PermissionMode(permission_mode)
+            except ValueError:
+                pass
+            runtime.approval.set_permission_checker(PermissionChecker(settings))
+            logger.info(
+                "Harness magic word: PermissionChecker enabled, mode={mode}",
+                mode=settings.mode,
+            )
+        except Exception:
+            logger.debug("Failed to enable PermissionChecker via magic word", exc_info=True)
+
+        # 2. 启用 MemoryManager
+        try:
+            from kimi_cli.harness.memory.manager import MemoryManager
+
+            if runtime.memory_manager is None:
+                memory_manager = MemoryManager(work_dir=str(runtime.session.work_dir))
+                runtime.memory_manager = memory_manager
+            logger.info("Harness magic word: MemoryManager enabled, scope={scope}", scope=memory)
+        except Exception:
+            logger.debug("Failed to enable MemoryManager via magic word", exc_info=True)
+
+        # 3. 启用 SandboxExecutor
+        try:
+            from kimi_cli.harness.sandbox.executor import SandboxMode, create_sandbox_executor
+
+            _ISOLATION_TO_SANDBOX: dict[str, SandboxMode] = {
+                "command": SandboxMode.COMMAND,
+                "docker": SandboxMode.DOCKER,
+            }
+            mode = _ISOLATION_TO_SANDBOX.get(isolation, SandboxMode.COMMAND)
+            if runtime.sandbox_executor is None:
+                runtime.sandbox_executor = create_sandbox_executor(mode)
+            logger.info("Harness magic word: SandboxExecutor enabled, mode={mode}", mode=mode)
+        except Exception:
+            logger.debug("Failed to enable SandboxExecutor via magic word", exc_info=True)
+
     @property
     def available_slash_commands(self) -> list[SlashCommand[Any]]:
         return self._slash_commands
@@ -466,6 +528,20 @@ class KimiSoul:
         approval_source_token = None
         turn_started = False
         turn_finished = False
+
+        # --- Harness 魔法词检测 ---
+        if isinstance(user_input, str):
+            from kimi_cli.harness.magic_word import detect_magic_word
+
+            magic_result = detect_magic_word(user_input)
+            if magic_result.detected:
+                user_input = magic_result.cleaned_input or user_input
+                self._apply_harness_capabilities(
+                    permission_mode=magic_result.permission_mode,
+                    memory=magic_result.memory,
+                    isolation=magic_result.isolation,
+                )
+
         if get_current_approval_source_or_none() is None:
             approval_source_token = set_current_approval_source(
                 ApprovalSource(kind="foreground_turn", id=uuid.uuid4().hex)

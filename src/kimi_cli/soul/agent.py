@@ -241,6 +241,9 @@ class Runtime:
         self.approval_runtime.bind_root_wire_hub(self.root_wire_hub)
         self.approval.set_runtime(self.approval_runtime)
         self.background_tasks.bind_runtime(self)
+        # 回填 TeamCoordinator 的 Runtime 引用
+        if self.team_coordinator is not None:
+            self.team_coordinator.set_runtime(self)
 
     @staticmethod
     async def create(

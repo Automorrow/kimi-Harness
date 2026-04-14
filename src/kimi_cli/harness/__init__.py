@@ -28,4 +28,6 @@ __all__ = [
     "TeamCoordinator",
     "ToolRegistry",
     "WireToStreamAdapter",
+    "MagicWordResult",
+    "detect_magic_word",
 ]
