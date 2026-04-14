@@ -470,7 +470,7 @@ async def load_agent(
         try:
             from kimi_cli.harness.memory.manager import MemoryManager
 
-            memory_manager = MemoryManager(work_dir=runtime.session.work_dir)
+            memory_manager = MemoryManager(work_dir=str(runtime.session.work_dir))
             memory_prompt = memory_manager.load_memory_prompt()
             if memory_prompt:
                 system_prompt = system_prompt + "\n\n" + memory_prompt
