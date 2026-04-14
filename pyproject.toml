@@ -4,6 +4,7 @@ version = "1.33.0"
 description = "Kimi Harness - 白盒化 Agent 基础设施"
 readme = "README.md"
 requires-python = ">=3.12"
+license = "Apache-2.0"
 dependencies = [
     "agent-client-protocol==0.8.0",
     "aiofiles>=24.0,<26.0",
