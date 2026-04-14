@@ -292,15 +292,41 @@ class KimiSoul:
         if enabled:
             self._ensure_plan_session_id()
             self._pending_plan_activation_injection = source == "manual"
+            # 同步 PermissionChecker：进入 plan mode 时切换为 PLAN
+            self._sync_permission_checker_plan_mode(True)
         else:
             self._pending_plan_activation_injection = False
             self._plan_session_id = None
             self._runtime.session.state.plan_session_id = None
             self._runtime.session.state.plan_slug = None
+            # 同步 PermissionChecker：退出 plan mode 时将 PLAN 切换为 DEFAULT
+            self._sync_permission_checker_plan_mode(False)
         # Persist plan mode to session state so it survives process restarts
         self._runtime.session.state.plan_mode = self._plan_mode
         self._runtime.session.save_state()
         return self._plan_mode
+
+    def _sync_permission_checker_plan_mode(self, plan_mode_enabled: bool) -> None:
+        """同步 PermissionChecker 的 plan mode 状态。
+
+        当 KimiSoul 的 plan mode 状态变化时，需要同步更新
+        PermissionChecker 的 mode，否则两者状态不一致会导致
+        ExitPlanMode 后写操作仍被阻止。
+        """
+        try:
+            from kimi_cli.harness.permissions.checker import PermissionMode
+
+            checker = self._runtime.approval._permission_checker
+            if checker is None:
+                return
+            if plan_mode_enabled:
+                if checker.settings.mode != PermissionMode.PLAN:
+                    checker.settings.mode = PermissionMode.PLAN
+            else:
+                if checker.settings.mode == PermissionMode.PLAN:
+                    checker.settings.mode = PermissionMode.DEFAULT
+        except Exception:
+            logger.debug("Failed to sync PermissionChecker plan mode", exc_info=True)
 
     def get_plan_file_path(self) -> Path | None:
         """Get the plan file path for the current session."""
