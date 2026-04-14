@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import fcntl
+from contextlib import contextmanager
 import logging
 import os
 import re
@@ -328,4 +329,3 @@ class MemoryManager:
 # contextmanager import (延迟以避免兼容问题)
 # ---------------------------------------------------------------------------
 
-from contextlib import contextmanager  # noqa: E402

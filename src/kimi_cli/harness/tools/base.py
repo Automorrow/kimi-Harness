@@ -12,7 +12,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 if TYPE_CHECKING:
     from kosong.tooling import CallableTool, CallableTool2
@@ -39,7 +39,7 @@ class DynamicToolInput(ToolInput):
     将原始 JSON 字典作为 ``params`` 承载，同时保留类型安全的外壳。
     """
 
-    params: dict[str, Any] = field(default_factory=dict)  # type: ignore[assignment]
+    params: dict[str, Any] = Field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -360,12 +360,12 @@ def toolset_to_registry(toolset: Any) -> ToolRegistry:
     Returns:
         包含所有工具适配器的 ``ToolRegistry``。
     """
-    from kimi_cli.utils.logging import logger
+    from kimi_cli import logger
 
     registry = ToolRegistry()
     for tool in toolset.tools:
         try:
-            adapter = KosongToolAdapter(tool.base)
+            adapter = KosongToolAdapter(tool)
             registry.register(adapter)
         except Exception as e:
             logger.warning(

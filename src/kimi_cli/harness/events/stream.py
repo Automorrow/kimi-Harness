@@ -274,7 +274,7 @@ class WireToStreamAdapter:
                 TurnBegin,
                 TurnEnd,
                 StepBegin,
-                StepEnd,
+                StepInterrupted,
             )
         except ImportError:
             return None
@@ -306,12 +306,12 @@ class WireToStreamAdapter:
                     tool_call_id=wire_message.tool_call_id,
                 )
             case TurnBegin():
-                return TurnEvent(event_type="turn_begin", turn_count=wire_message.turn_count)
+                return TurnEvent(event_type="turn_begin", turn_count=0)
             case TurnEnd():
-                return TurnEvent(event_type="turn_end", turn_count=wire_message.turn_count)
+                return TurnEvent(event_type="turn_end", turn_count=0)
             case StepBegin():
-                return TurnEvent(event_type="step_begin", turn_count=wire_message.step_count)
-            case StepEnd():
-                return TurnEvent(event_type="step_end", turn_count=wire_message.step_count)
+                return TurnEvent(event_type="step_begin", turn_count=getattr(wire_message, 'n', 0))
+            case StepInterrupted():
+                return TurnEvent(event_type="step_interrupted", turn_count=0)
             case _:
                 return None

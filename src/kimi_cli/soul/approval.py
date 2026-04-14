@@ -146,9 +146,19 @@ class Approval:
         # --- Harness PermissionChecker 前置检查 ---
         if self._permission_checker is not None:
             try:
+                # 尝试从 description 中提取文件路径
+                _file_path: str | None = None
+                if description:
+                    for prefix in ("file ", "path "):
+                        if prefix in description.lower():
+                            idx = description.lower().index(prefix)
+                            _file_path = description[idx + len(prefix):].strip().split()[0]
+                            break
+
                 decision = self._permission_checker.evaluate(
                     tool_call.function.name,
                     is_read_only=(action in _READONLY_ACTIONS),
+                    file_path=_file_path,
                     command=description if "command" in action.lower() else None,
                 )
                 if not decision.allowed and not decision.requires_confirmation:
