@@ -352,6 +352,7 @@ def toolset_to_registry(toolset: Any) -> ToolRegistry:
 
     遍历 toolset 中所有已注册的 kosong 工具，为每个工具创建
     ``KosongToolAdapter`` 并注册到新的 ``ToolRegistry`` 中。
+    跳过适配失败的工具并记录警告。
 
     Args:
         toolset: ``KimiToolset`` 实例。
@@ -359,8 +360,17 @@ def toolset_to_registry(toolset: Any) -> ToolRegistry:
     Returns:
         包含所有工具适配器的 ``ToolRegistry``。
     """
+    from kimi_cli.utils.logging import logger
+
     registry = ToolRegistry()
     for tool in toolset.tools:
-        adapter = KosongToolAdapter(tool.base)
-        registry.register(adapter)
+        try:
+            adapter = KosongToolAdapter(tool.base)
+            registry.register(adapter)
+        except Exception as e:
+            logger.warning(
+                "Failed to bridge tool '{name}' to ToolRegistry: {error}",
+                name=getattr(tool, "name", "?"),
+                error=e,
+            )
     return registry

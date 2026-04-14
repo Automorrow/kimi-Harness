@@ -79,6 +79,7 @@ class Approval:
     ):
         self._state = state or ApprovalState(yolo=yolo)
         self._runtime = runtime or ApprovalRuntime()
+        self._permission_checker: Any = None
 
     def share(self) -> Approval:
         """Create a new approval queue that shares state (yolo + auto-approve)."""
@@ -86,6 +87,15 @@ class Approval:
 
     def set_runtime(self, runtime: ApprovalRuntime) -> None:
         self._runtime = runtime
+
+    def set_permission_checker(self, checker: Any) -> None:
+        """Set the Harness PermissionChecker for programmatic permission evaluation.
+
+        When set, the checker runs before yolo/auto-approve logic.
+        DENY decisions are final and cannot be overridden by yolo.
+        CONFIRM decisions fall through to normal user confirmation.
+        """
+        self._permission_checker = checker
 
     @property
     def runtime(self) -> ApprovalRuntime:
@@ -132,6 +142,25 @@ class Approval:
             action=action,
             description=description,
         )
+
+        # --- Harness PermissionChecker 前置检查 ---
+        if self._permission_checker is not None:
+            try:
+                decision = self._permission_checker.evaluate(
+                    tool_call.function.name,
+                    is_read_only=(action in _READONLY_ACTIONS),
+                    command=description if "command" in action.lower() else None,
+                )
+                if not decision.allowed and not decision.requires_confirmation:
+                    logger.info(
+                        "Permission denied by harness checker: {tool} - {reason}",
+                        tool=tool_call.function.name,
+                        reason=decision.reason,
+                    )
+                    return ApprovalResult(approved=False, feedback=decision.reason)
+            except Exception:
+                logger.debug("Harness permission check failed, falling back to default", exc_info=True)
+
         if self._state.yolo:
             return ApprovalResult(approved=True)
 
@@ -171,3 +200,19 @@ class Approval:
                 return ApprovalResult(approved=False, feedback=feedback)
             case _:
                 return ApprovalResult(approved=False)
+
+
+# Actions that are considered read-only for permission checking.
+_READONLY_ACTIONS: frozenset[str] = frozenset({
+    "read file",
+    "list directory",
+    "search",
+    "web search",
+    "web fetch",
+    "list mcp resources",
+    "read mcp resource",
+    "tool search",
+    "ask user",
+    "brief",
+    "config",
+})

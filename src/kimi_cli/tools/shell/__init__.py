@@ -97,6 +97,38 @@ class Shell(CallableTool2[Params]):
         if not result:
             return result.rejection_error()
 
+        # --- Harness SandboxExecutor 集成 ---
+        sandbox = getattr(self._runtime, "sandbox_executor", None)
+        if sandbox is not None:
+            try:
+                sandbox_result = await sandbox.execute(
+                    params.command,
+                    cwd=str(self._runtime.session.work_dir),
+                    timeout_seconds=params.timeout,
+                    env=get_noninteractive_env(),
+                )
+                if sandbox_result.timed_out:
+                    return builder.error(
+                        f"Command killed by timeout ({params.timeout}s)",
+                        brief=f"Killed by timeout ({params.timeout}s)",
+                    )
+                if sandbox_result.stdout:
+                    builder.write(sandbox_result.stdout)
+                if sandbox_result.stderr:
+                    builder.write(sandbox_result.stderr)
+                if sandbox_result.exit_code != 0:
+                    return builder.error(
+                        f"Command failed with exit code: {sandbox_result.exit_code}.",
+                        brief=f"Failed with exit code: {sandbox_result.exit_code}",
+                    )
+                return builder.ok("Command executed successfully via sandbox.")
+            except Exception as e:
+                logger.error("Sandbox execution failed: {error}", error=e)
+                return builder.error(
+                    f"Sandbox execution failed: {e}",
+                    brief="Sandbox execution failed",
+                )
+
         def stdout_cb(line: bytes):
             line_str = line.decode(encoding="utf-8", errors="replace")
             builder.write(line_str)

@@ -12,7 +12,7 @@ if TYPE_CHECKING:
 
 @cache
 def get_version() -> str:
-    from importlib.metadata
+    from importlib import metadata
 
     return metadata.version("kimi-harness")
 
