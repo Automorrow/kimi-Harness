@@ -62,7 +62,7 @@ class AgentSpec(BaseModel):
         default=None, description="Memory scope: none|project|global"
     )
     isolation: str | None = Field(
-        default=None, description="Isolation mode: none|worktree|remote"
+        default=None, description="Isolation mode: none|command|docker (worktree/remote are aliases)"
     )
     skills: list[str] | None = Field(
         default=None, description="Skill names to load for this agent"

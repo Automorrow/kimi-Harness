@@ -147,12 +147,59 @@ class CommandSandboxExecutor(SandboxExecutor):
     """命令级隔离执行器 - 过滤危险命令后执行。
 
     在执行前检查命令是否匹配危险模式，匹配则拒绝执行。
+    使用 shlex 分词防止前缀/变量绕过。
     """
 
     def __init__(self, extra_deny_patterns: list[str] | None = None) -> None:
         self._deny_patterns = list(_DANGEROUS_COMMAND_PATTERNS)
         if extra_deny_patterns:
             self._deny_patterns.extend(extra_deny_patterns)
+
+    def _is_dangerous(self, command: str) -> tuple[bool, str]:
+        """检查命令是否危险。
+
+        使用多种策略防止绕过：
+        1. 去除 sudo/env 等前缀后检查
+        2. 对分词后的 token 做子串匹配
+        3. 对原始命令做 fnmatch 模式匹配
+        """
+        import shlex
+
+        stripped = command.strip()
+
+        # 策略 1: 去除常见前缀后检查
+        normalized = stripped
+        for prefix in ("sudo ", "sudo -A ", "env ", "/usr/bin/", "/bin/", "/usr/sbin/"):
+            if normalized.startswith(prefix):
+                normalized = normalized[len(prefix):].strip()
+
+        # 策略 2: 对归一化后的命令做 fnmatch
+        for pattern in self._deny_patterns:
+            if fnmatch.fnmatch(normalized, pattern):
+                return True, pattern
+
+        # 策略 3: 对原始命令做 fnmatch（捕获原始匹配）
+        for pattern in self._deny_patterns:
+            if fnmatch.fnmatch(stripped, pattern):
+                return True, pattern
+
+        # 策略 4: 分词后检查危险 token 组合
+        try:
+            tokens = shlex.split(stripped)
+        except ValueError:
+            tokens = stripped.split()
+
+        # 检查 rm + 递归删除根目录
+        if "rm" in tokens and ("-r" in tokens or "-rf" in tokens or "--recursive" in tokens):
+            for t in tokens:
+                if t.startswith("/") and (t == "/" or t.startswith("/etc") or t.startswith("/var") or t.startswith("/usr") or t.startswith("/bin") or t.startswith("/sbin") or t.startswith("/boot") or t.startswith("/lib") or t.startswith("/sys") or t.startswith("/proc") or t.startswith("/dev")):
+                    return True, f"rm recursive on system path: {t}"
+
+        # 检查 fork bomb
+        if ":" in tokens and "|:&" in " ".join(tokens):
+            return True, "fork bomb pattern detected"
+
+        return False, ""
 
     async def execute(
         self,
@@ -163,16 +210,13 @@ class CommandSandboxExecutor(SandboxExecutor):
         env: dict[str, str] | None = None,
     ) -> SandboxResult:
         """检查命令安全性后执行。"""
-        import fnmatch
-
-        stripped = command.strip()
-        for pattern in self._deny_patterns:
-            if fnmatch.fnmatch(stripped, pattern):
-                return SandboxResult(
-                    stdout="",
-                    stderr=f"Command blocked by sandbox: matches dangerous pattern '{pattern}'",
-                    exit_code=126,
-                )
+        is_dangerous, pattern = self._is_dangerous(command)
+        if is_dangerous:
+            return SandboxResult(
+                stdout="",
+                stderr=f"Command blocked by sandbox: matches dangerous pattern '{pattern}'",
+                exit_code=126,
+            )
 
         # 安全检查通过，委托给 NoopExecutor
         executor = NoopSandboxExecutor()

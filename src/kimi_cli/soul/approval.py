@@ -170,10 +170,24 @@ class Approval:
                         reason=decision.reason,
                     )
                     return ApprovalResult(approved=False, feedback=decision.reason)
+                if decision.requires_confirmation:
+                    # CONFIRM 决策跳过 yolo/auto-approve，直接走用户确认
+                    logger.info(
+                        "Permission requires confirmation by harness checker: {tool} - {reason}",
+                        tool=tool_call.function.name,
+                        reason=decision.reason,
+                    )
+                    # 不 return，fall-through 到用户确认流程（跳过下面的 yolo 检查）
+                    _harness_confirmed = True
+                else:
+                    _harness_confirmed = False
             except Exception:
                 logger.debug("Harness permission check failed, falling back to default", exc_info=True)
+                _harness_confirmed = False
+        else:
+            _harness_confirmed = False
 
-        if self._state.yolo:
+        if not _harness_confirmed and self._state.yolo:
             return ApprovalResult(approved=True)
 
         if action in self._state.auto_approve_actions:

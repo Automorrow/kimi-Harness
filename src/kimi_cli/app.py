@@ -273,6 +273,12 @@ class KimiCLI:
         soul.set_hook_engine(hook_engine)
         runtime.hook_engine = hook_engine
 
+        # --- Harness 全局配置（环境变量驱动） ---
+        if os.environ.get("KIMI_HARNESS_STREAM", "").lower() in ("true", "1", "yes"):
+            from kimi_cli.soul import enable_harness_stream
+
+            enable_harness_stream(enabled=True)
+
         return KimiCLI(soul, runtime, env_overrides)
 
     def __init__(
@@ -431,12 +437,6 @@ class KimiCLI:
                     forwarded_approval_requests.clear()
                     assert self._runtime.root_wire_hub is not None
                     self._runtime.root_wire_hub.unsubscribe(root_hub_queue)
-
-            # --- Harness StreamEvent 启用（通过环境变量控制） ---
-            if os.environ.get("KIMI_HARNESS_STREAM", "").lower() in ("true", "1", "yes"):
-                from kimi_cli.soul import enable_harness_stream
-
-                enable_harness_stream(enabled=True)
 
             soul_task = asyncio.create_task(
                 run_soul(

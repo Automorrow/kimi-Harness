@@ -580,6 +580,9 @@ async def load_agent(
 
             _ISOLATION_TO_SANDBOX: dict[str, SandboxMode] = {
                 "none": SandboxMode.NONE,
+                "command": SandboxMode.COMMAND,
+                "docker": SandboxMode.DOCKER,
+                # 向后兼容别名
                 "worktree": SandboxMode.COMMAND,
                 "remote": SandboxMode.DOCKER,
             }
