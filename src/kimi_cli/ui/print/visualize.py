@@ -1,3 +1,4 @@
+import os
 from typing import Protocol
 
 import rich
@@ -133,6 +134,28 @@ class FinalOnlyTextPrinter(Printer):
         self._content_buffer.clear()
 
 
+class HarnessStreamPrinter(Printer):
+    """将 WireMessage 转换为 HarnessStreamEvent JSON 输出。
+
+    当环境变量 KIMI_HARNESS_STREAM=true 且 --output-format stream-json 时使用。
+    每行输出一个 JSON 对象，格式为 HarnessStreamEvent 标准事件。
+    """
+
+    def feed(self, msg: WireMessage) -> None:
+        try:
+            from kimi_cli.harness.events.stream import WireToStreamAdapter, event_to_json
+
+            event = WireToStreamAdapter.convert(msg)
+            if event is not None:
+                print(event_to_json(event), flush=True)
+        except Exception:
+            # 桥接失败时静默忽略，不中断输出流
+            pass
+
+    def flush(self) -> None:
+        pass
+
+
 class FinalOnlyJsonPrinter(Printer):
     def __init__(self) -> None:
         self._content_buffer: list[ContentPart] = []
@@ -158,6 +181,9 @@ class FinalOnlyJsonPrinter(Printer):
 
 
 async def visualize(output_format: OutputFormat, final_only: bool, wire: Wire) -> None:
+    # 当 KIMI_HARNESS_STREAM=true 且 stream-json 模式时，使用 HarnessStreamPrinter
+    _harness_stream = os.environ.get("KIMI_HARNESS_STREAM", "").lower() in ("true", "1", "yes")
+
     if final_only:
         match output_format:
             case "text":
@@ -169,7 +195,10 @@ async def visualize(output_format: OutputFormat, final_only: bool, wire: Wire) -
             case "text":
                 handler = TextPrinter()
             case "stream-json":
-                handler = JsonPrinter()
+                if _harness_stream:
+                    handler = HarnessStreamPrinter()
+                else:
+                    handler = JsonPrinter()
 
     wire_ui = wire.ui_side(merge=True)
     while True:
