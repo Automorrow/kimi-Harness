@@ -149,6 +149,10 @@ class KimiSoul:
 
         self._steer_queue: asyncio.Queue[str | list[ContentPart]] = asyncio.Queue()
         self._plan_mode: bool = self._runtime.session.state.plan_mode
+        # 确保 _plan_mode 与 PermissionChecker 严格等价：
+        # 如果 PermissionChecker.mode == PLAN 但 _plan_mode == False（例如
+        # 通过 agent.yaml 配置），则自动同步。反之亦然。
+        self._ensure_plan_mode_consistency()
         self._plan_session_id: str | None = self._runtime.session.state.plan_session_id
         # Pre-warm slug cache so the persisted slug survives process restarts
         if self._plan_session_id is not None and self._runtime.session.state.plan_slug is not None:
@@ -327,6 +331,37 @@ class KimiSoul:
                     checker.settings.mode = PermissionMode.DEFAULT
         except Exception:
             logger.debug("Failed to sync PermissionChecker plan mode", exc_info=True)
+
+    def _ensure_plan_mode_consistency(self) -> None:
+        """确保 _plan_mode 与 PermissionChecker.mode 严格等价。
+
+        在 __init__ 中调用，处理以下不一致场景：
+        - agent.yaml 设置 permission_mode=plan，但 session.state.plan_mode=False
+        - 恢复会话时 PermissionChecker 被 _apply_harness_capabilities 覆盖为 PLAN
+        """
+        try:
+            from kimi_cli.harness.permissions.checker import PermissionMode
+
+            checker = self._runtime.approval._permission_checker
+            if checker is None:
+                return
+            checker_is_plan = checker.settings.mode == PermissionMode.PLAN
+            if checker_is_plan and not self._plan_mode:
+                self._plan_mode = True
+                self._runtime.session.state.plan_mode = True
+                self._ensure_plan_session_id()
+                logger.info(
+                    "Plan mode consistency fix: PermissionChecker was PLAN but "
+                    "_plan_mode was False, synced to True"
+                )
+            elif not checker_is_plan and self._plan_mode:
+                checker.settings.mode = PermissionMode.PLAN
+                logger.info(
+                    "Plan mode consistency fix: _plan_mode was True but "
+                    "PermissionChecker was not PLAN, synced to PLAN"
+                )
+        except Exception:
+            logger.debug("Failed to ensure plan mode consistency", exc_info=True)
 
     def get_plan_file_path(self) -> Path | None:
         """Get the plan file path for the current session."""
