@@ -19,7 +19,7 @@ def get_version() -> str:
 
 @cache
 def get_user_agent() -> str:
-    return f"KimiHarness/{get_version()}"
+    return f"KimiCLI/{get_version()} (Harness)"
 
 
 def __getattr__(name: str) -> str:
