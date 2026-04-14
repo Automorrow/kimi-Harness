@@ -8,7 +8,7 @@ resolution-markers = [
 
 [manifest]
 members = [
-    "kimi-cli",
+    "kimi-harness",
     "kimi-code",
     "kimi-sdk",
     "kosong",
@@ -1207,7 +1207,7 @@ wheels = [
 ]
 
 [[package]]
-name = "kimi-cli"
+name = "kimi-harness"
 version = "1.33.0"
 source = { editable = "." }
 dependencies = [
@@ -1303,11 +1303,11 @@ name = "kimi-code"
 version = "1.33.0"
 source = { editable = "packages/kimi-code" }
 dependencies = [
-    { name = "kimi-cli" },
+    { name = "kimi-harness" },
 ]
 
 [package.metadata]
-requires-dist = [{ name = "kimi-cli", editable = "." }]
+requires-dist = [{ name = "kimi-harness", editable = "." }]
 
 [[package]]
 name = "kimi-sdk"
