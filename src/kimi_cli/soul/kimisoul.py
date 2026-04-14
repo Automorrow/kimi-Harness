@@ -510,8 +510,12 @@ class KimiSoul:
             from kimi_cli.harness.sandbox.executor import SandboxMode, create_sandbox_executor
 
             _ISOLATION_TO_SANDBOX: dict[str, SandboxMode] = {
+                "none": SandboxMode.NONE,
                 "command": SandboxMode.COMMAND,
                 "docker": SandboxMode.DOCKER,
+                # 向后兼容别名
+                "worktree": SandboxMode.COMMAND,
+                "remote": SandboxMode.DOCKER,
             }
             mode = _ISOLATION_TO_SANDBOX.get(isolation, SandboxMode.COMMAND)
             if runtime.sandbox_executor is None:
@@ -535,7 +539,8 @@ class KimiSoul:
 
             magic_result = detect_magic_word(user_input)
             if magic_result.detected:
-                user_input = magic_result.cleaned_input or user_input
+                # cleaned_input 为空时使用空字符串而非回退到含魔法词的原始输入
+                user_input = magic_result.cleaned_input if magic_result.cleaned_input else ""
                 self._apply_harness_capabilities(
                     permission_mode=magic_result.permission_mode,
                     memory=magic_result.memory,

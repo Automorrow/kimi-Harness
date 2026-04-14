@@ -216,10 +216,11 @@ class TeamCoordinator:
                 result = await runner.run(req)
 
                 if isinstance(result, ToolOk):
+                    output = result.output if isinstance(result.output, str) else str(result.output)
                     return TaskResult(
                         agent_id=member.agent_id,
                         task_id=task_id,
-                        output=result.output,
+                        output=output,
                         is_error=False,
                         duration_ms=(time.monotonic() - t0) * 1000,
                     )
