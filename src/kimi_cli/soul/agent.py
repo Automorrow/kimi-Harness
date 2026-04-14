@@ -189,6 +189,9 @@ def _create_team_coordinator() -> Any:
 
         return TeamCoordinator()
     except Exception:
+        from kimi_cli import logger
+
+        logger.debug("Failed to create Harness TeamCoordinator", exc_info=True)
         return None
 
 

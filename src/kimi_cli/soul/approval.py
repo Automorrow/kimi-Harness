@@ -83,7 +83,9 @@ class Approval:
 
     def share(self) -> Approval:
         """Create a new approval queue that shares state (yolo + auto-approve)."""
-        return Approval(state=self._state, runtime=self._runtime)
+        shared = Approval(state=self._state, runtime=self._runtime)
+        shared._permission_checker = self._permission_checker
+        return shared
 
     def set_runtime(self, runtime: ApprovalRuntime) -> None:
         self._runtime = runtime

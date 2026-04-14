@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import fnmatch
 import logging
+import os
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
@@ -190,6 +191,10 @@ class PermissionChecker:
         Returns:
             权限决策结果。
         """
+        # 0. 规范化文件路径，防止 /etc/./passwd 等变体绕过
+        if file_path:
+            file_path = os.path.normpath(file_path)
+
         # 1. 内置敏感路径保护
         if file_path:
             for candidate_path in _policy_match_paths(file_path):
