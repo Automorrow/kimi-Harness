@@ -216,6 +216,9 @@ class PermissionChecker:
                             return PermissionDecision.deny(
                                 f"Path {file_path} matches deny rule: {rule.pattern}"
                             )
+                        return PermissionDecision.allow(
+                            f"Path {file_path} matches allow rule: {rule.pattern}"
+                        )
 
         # 5. 命令拒绝模式
         if command:
@@ -244,6 +247,8 @@ class PermissionChecker:
             )
 
         if mode == PermissionMode.PLAN:
+            if is_read_only:
+                return PermissionDecision.allow("Read-only tools are allowed in plan mode")
             return PermissionDecision.deny(
                 "Plan mode blocks mutating tools until the user exits plan mode"
             )

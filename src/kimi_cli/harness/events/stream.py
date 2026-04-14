@@ -101,7 +101,7 @@ class SubagentEvent:
 class TurnEvent:
     """Turn 级别事件。"""
 
-    event_type: Literal["turn_begin", "turn_end", "step_begin", "step_end"]
+    event_type: Literal["turn_begin", "turn_end", "step_begin", "step_end", "step_interrupted"]
     turn_count: int = 0
     timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
@@ -299,8 +299,9 @@ class WireToStreamAdapter:
                     output = wire_message.return_value.message or ""
                 elif hasattr(wire_message.return_value, "output"):
                     output = str(wire_message.return_value.output or "")
+                _tool_name = getattr(wire_message, 'tool_name', '') or ''
                 return ToolExecutionCompleted(
-                    tool_name="",
+                    tool_name=_tool_name,
                     output=output,
                     is_error=is_error,
                     tool_call_id=wire_message.tool_call_id,

@@ -117,6 +117,7 @@ class NoopSandboxExecutor(SandboxExecutor):
             )
         except asyncio.TimeoutError:
             proc.kill()  # type: ignore[union-attr]
+            await proc.wait()  # type: ignore[union-attr]
             return SandboxResult(
                 stdout="",
                 stderr=f"Command timed out after {timeout_seconds}s",
@@ -258,6 +259,7 @@ class DockerSandboxExecutor(SandboxExecutor):
             )
         except asyncio.TimeoutError:
             proc.kill()  # type: ignore[union-attr]
+            await proc.wait()  # type: ignore[union-attr]
             return SandboxResult(
                 stdout="",
                 stderr=f"Docker command timed out after {timeout_seconds}s",
