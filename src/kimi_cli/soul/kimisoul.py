@@ -486,11 +486,15 @@ class KimiSoul:
                 settings.mode = PermissionMode(permission_mode)
             except ValueError:
                 pass
-            runtime.approval.set_permission_checker(PermissionChecker(settings))
-            logger.info(
-                "Harness magic word: PermissionChecker enabled, mode={mode}",
-                mode=settings.mode,
-            )
+            # 幂等保护：仅在未设置时才创建 PermissionChecker
+            if runtime.approval._permission_checker is None:
+                runtime.approval.set_permission_checker(PermissionChecker(settings))
+                logger.info(
+                    "Harness magic word: PermissionChecker enabled, mode={mode}",
+                    mode=settings.mode,
+                )
+            else:
+                logger.debug("Harness magic word: PermissionChecker already set, skipping")
         except Exception:
             logger.debug("Failed to enable PermissionChecker via magic word", exc_info=True)
 

@@ -149,8 +149,9 @@ class HarnessStreamPrinter(Printer):
             if event is not None:
                 print(event_to_json(event), flush=True)
         except Exception:
-            # 桥接失败时静默忽略，不中断输出流
-            pass
+            import sys
+
+            print(f"[harness-bridge-error]", file=sys.stderr, flush=True)
 
     def flush(self) -> None:
         pass

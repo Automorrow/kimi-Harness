@@ -315,4 +315,13 @@ class WireToStreamAdapter:
             case StepInterrupted():
                 return TurnEvent(event_type="step_interrupted", turn_count=0)
             case _:
-                return None
+                # 其他 WireMessage 类型转换为通用 StatusEvent
+                msg_type = type(wire_message).__name__
+                try:
+                    data = wire_message.model_dump(mode="json", exclude_none=True)
+                except Exception:
+                    data = {}
+                return StatusEvent(
+                    message=f"wire:{msg_type}",
+                    metadata={"wire_type": msg_type, "data": data},
+                )
