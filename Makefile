@@ -113,9 +113,9 @@ test-kimi-sdk: ## Run kimi-sdk tests.
 	@uv run --project sdks/kimi-sdk --directory sdks/kimi-sdk pytest tests -vv
 .PHONY: build build-kimi-cli build-kosong build-pykaos build-kimi-sdk build-bin build-bin-onedir
 build: build-web build-vis build-kimi-cli build-kosong build-pykaos build-kimi-sdk ## Build Python packages for release.
-build-kimi-cli: build-web build-vis ## Build the kimi-cli and kimi-code sdists and wheels.
-	@echo "==> Building kimi-cli distributions"
-	@uv build --package kimi-cli --no-sources --out-dir dist
+build-kimi-cli: build-web build-vis ## Build the kimi-harness and kimi-code sdists and wheels.
+	@echo "==> Building kimi-harness distributions"
+	@uv build --package kimi-harness --no-sources --out-dir dist
 	@echo "==> Building kimi-code distributions"
 	@uv build --package kimi-code --no-sources --out-dir dist
 build-kosong: ## Build the kosong sdist and wheel.
