@@ -117,6 +117,7 @@ class TeamCoordinator:
 
     def __init__(self) -> None:
         self._teams: dict[str, Team] = {}
+        self._round_robin_indices: dict[str, int] = {}
 
     def create_team(
         self,
@@ -182,27 +183,34 @@ class TeamCoordinator:
         results: list[TaskResult] = []
         task_id = str(uuid.uuid4())[:8]
 
-        for member in targets:
+        async def _execute_single(member: TeamMember) -> TaskResult:
             t0 = time.monotonic()
             try:
                 # 实际执行需要与 Runtime 集成
                 # 这里提供框架，具体执行逻辑由 Runtime 注入
                 output = f"[Task {task_id}] Dispatched to {member.agent_type} ({member.agent_id}): {task}"
-                results.append(TaskResult(
+                return TaskResult(
                     agent_id=member.agent_id,
                     task_id=task_id,
                     output=output,
                     is_error=False,
                     duration_ms=(time.monotonic() - t0) * 1000,
-                ))
+                )
             except Exception as e:
-                results.append(TaskResult(
+                return TaskResult(
                     agent_id=member.agent_id,
                     task_id=task_id,
                     output=str(e),
                     is_error=True,
                     duration_ms=(time.monotonic() - t0) * 1000,
-                ))
+                )
+
+        # broadcast 策略并行执行，其他策略串行
+        if strategy == "broadcast" and len(targets) > 1:
+            results = list(await asyncio.gather(*[_execute_single(m) for m in targets]))
+        else:
+            for member in targets:
+                results.append(await _execute_single(member))
 
         return results
 
@@ -230,12 +238,13 @@ class TeamCoordinator:
                 message=message[:100],
             )
 
-    @staticmethod
     def _select_targets(
+        self,
         team: Team,
         strategy: Literal["leader", "broadcast", "round_robin"],
     ) -> list[TeamMember]:
         """根据策略选择任务目标。"""
+        workers = team.get_workers() or team.members
         match strategy:
             case "leader":
                 leader = team.get_leader()
@@ -243,6 +252,11 @@ class TeamCoordinator:
             case "broadcast":
                 return team.members
             case "round_robin":
-                return team.get_workers() or team.members
+                if not workers:
+                    return team.members
+                idx = self._round_robin_indices.get(team.name, 0)
+                member = workers[idx % len(workers)]
+                self._round_robin_indices[team.name] = idx + 1
+                return [member]
             case _:
                 return team.members

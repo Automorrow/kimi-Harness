@@ -151,11 +151,11 @@ class Approval:
                 # 尝试从 description 中提取文件路径
                 _file_path: str | None = None
                 if description:
-                    for prefix in ("file ", "path "):
-                        if prefix in description.lower():
-                            idx = description.lower().index(prefix)
-                            _file_path = description[idx + len(prefix):].strip().split()[0]
-                            break
+                    import re
+
+                    match = re.search(r'(?:file|path)\s+([^\s,;)]+)', description, re.IGNORECASE)
+                    if match:
+                        _file_path = match.group(1)
 
                 decision = self._permission_checker.evaluate(
                     tool_call.function.name,

@@ -7,11 +7,11 @@
 
 from __future__ import annotations
 
-import fcntl
-from contextlib import contextmanager
 import logging
 import os
 import re
+import sys
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -56,14 +56,34 @@ def _memory_lock_path(work_dir: str | Path) -> Path:
 
 @contextmanager  # type: ignore[misc]
 def _exclusive_file_lock(lock_path: Path):
-    """跨进程互斥文件锁上下文管理器。"""
+    """跨进程互斥文件锁上下文管理器。
+
+    Unix 使用 fcntl.flock，Windows 使用 msvcrt.locking 作为降级方案。
+    """
     lock_path.parent.mkdir(parents=True, exist_ok=True)
     fd = os.open(str(lock_path), os.O_CREAT | os.O_WRONLY)
     try:
-        fcntl.flock(fd, fcntl.LOCK_EX)
+        if sys.platform == "win32":
+            import msvcrt
+
+            msvcrt.locking(fd, msvcrt.LK_NBLCK, 1)
+        else:
+            import fcntl
+
+            fcntl.flock(fd, fcntl.LOCK_EX)
         yield
     finally:
-        fcntl.flock(fd, fcntl.LOCK_UN)
+        try:
+            if sys.platform == "win32":
+                import msvcrt
+
+                msvcrt.locking(fd, msvcrt.LK_UNLCK, 1)
+            else:
+                import fcntl
+
+                fcntl.flock(fd, fcntl.LOCK_UN)
+        except OSError:
+            pass
         os.close(fd)
 
 
