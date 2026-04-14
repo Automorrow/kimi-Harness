@@ -12,7 +12,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, create_model
 
 if TYPE_CHECKING:
     from kosong.tooling import CallableTool, CallableTool2
@@ -216,7 +216,11 @@ def _build_dynamic_input_model(
             fields[prop_name] = (prop_type | None, None)
 
     model_name = "KosongAdapterInput"
-    return type(model_name, (DynamicToolInput,), fields)  # type: ignore[return-value]
+    return create_model(  # type: ignore[return-value]
+        model_name,
+        __base__=DynamicToolInput,
+        **fields,
+    )
 
 
 def _json_schema_to_python_type(schema: dict[str, Any]) -> type:
@@ -363,14 +367,20 @@ def toolset_to_registry(toolset: Any) -> ToolRegistry:
     from kimi_cli import logger
 
     registry = ToolRegistry()
-    for tool in toolset.tools:
+    # toolset._tool_dict 存储的是原始 CallableTool/CallableTool2（有 call 方法），
+    # 而 toolset.tools 返回 tool.base（纯 Tool，无 call 方法）。
+    tool_dict: dict[str, Any] = getattr(toolset, "_tool_dict", {})
+    hidden: set[str] = getattr(toolset, "_hidden_tools", set())
+    for tool_name, tool in tool_dict.items():
+        if tool_name in hidden:
+            continue
         try:
             adapter = KosongToolAdapter(tool)
             registry.register(adapter)
         except Exception as e:
             logger.warning(
                 "Failed to bridge tool '{name}' to ToolRegistry: {error}",
-                name=getattr(tool, "name", "?"),
+                name=getattr(tool, "name", tool_name),
                 error=e,
             )
     return registry
