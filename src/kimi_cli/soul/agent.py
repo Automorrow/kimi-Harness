@@ -481,7 +481,7 @@ async def load_agent(
             runtime.memory_manager = memory_manager
             logger.info("Harness MemoryManager enabled: scope={scope}", scope=agent_spec.memory)
         except Exception:
-            logger.debug("Failed to initialize Harness MemoryManager", exc_info=True)
+            logger.warning("Failed to initialize Harness MemoryManager", exc_info=True)
 
     # Register built-in subagent types before loading tools because some tools render
     # descriptions from the labor market on initialization.
