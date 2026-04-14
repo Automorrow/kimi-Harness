@@ -69,7 +69,7 @@ members = [
 [tool.uv.sources]
 kosong = { workspace = true }
 pykaos = { workspace = true }
-kimi-cli = { workspace = true }
+kimi-harness = { workspace = true }
 
 [project.scripts]
 kimi-harness = "kimi_cli.__main__:main"
