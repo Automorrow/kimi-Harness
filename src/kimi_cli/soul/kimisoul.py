@@ -124,6 +124,7 @@ class KimiSoul:
         agent: Agent,
         *,
         context: Context,
+        agent_id: str | None = None,
     ):
         """
         Initialize the soul.
@@ -131,8 +132,10 @@ class KimiSoul:
         Args:
             agent (Agent): The agent to run.
             context (Context): The context of the agent.
+            agent_id: Optional agent ID for mailbox-based messaging.
         """
         self._agent = agent
+        self._agent_id = agent_id or agent.runtime.subagent_id
         self._runtime = agent.runtime
         self._denwa_renji = agent.runtime.denwa_renji
         self._approval = agent.runtime.approval
@@ -599,6 +602,8 @@ class KimiSoul:
 
         # --- Harness 魔法词检测 ---
         _magic_detected = False
+        from kosong.message import TextPart
+
         if isinstance(user_input, str):
             from kimi_cli.harness.magic_word import detect_magic_word
 
@@ -608,8 +613,6 @@ class KimiSoul:
                 _magic_detected = True
         elif isinstance(user_input, list):
             # list[ContentPart] 情况：检查第一个 TextPart 是否包含魔法词
-            from kosong.message import TextPart
-
             from kimi_cli.harness.magic_word import detect_magic_word
 
             for i, part in enumerate(user_input):
@@ -674,6 +677,35 @@ class KimiSoul:
             user_message = Message(role="user", content=user_input)
             text_input = user_message.extract_text(" ").strip()
 
+            # --- Harness Memory Search Injection ---
+            if self._runtime.memory_manager is not None and text_input:
+                try:
+                    from kimi_cli.harness.memory.search import find_relevant_memories
+
+                    relevant = find_relevant_memories(
+                        text_input,
+                        self._runtime.session.work_dir,
+                        max_results=3,
+                    )
+                    if relevant:
+                        fragments = [
+                            f"[{h.title}]\n{h.body_preview[:200]}"
+                            for h in relevant
+                        ]
+                        memory_prompt = (
+                            "The following relevant memories were recalled for this conversation:\n\n"
+                            + "\n\n".join(fragments)
+                        )
+                        await self._context.append_message(
+                            Message(role="system", content=memory_prompt)
+                        )
+                        logger.info(
+                            "Injected {count} relevant memory fragments",
+                            count=len(relevant),
+                        )
+                except Exception:
+                    logger.debug("Memory search injection failed", exc_info=True)
+
             if command_call := parse_slash_command_call(text_input):
                 command = self._find_slash_command(command_call.name)
                 if command is None:
@@ -710,6 +742,22 @@ class KimiSoul:
                         finally:
                             self._stop_hook_active = False
                         break
+
+            # Emit AssistantTurnComplete before TurnEnd for Harness stream consumers
+            try:
+                from kimi_cli.harness.events.stream import AssistantTurnComplete, event_to_json
+
+                _harness_msg = AssistantTurnComplete(
+                    message=self._context.history[-1].model_dump(mode="json")
+                    if self._context.history
+                    else None,
+                )
+                logger.debug(
+                    "HarnessStreamEvent: {event}",
+                    event=event_to_json(_harness_msg),
+                )
+            except Exception:
+                pass
 
             wire_send(TurnEnd())
             turn_finished = True
@@ -769,12 +817,16 @@ class KimiSoul:
                     name=name,
                 )
                 continue
+            aliases = []
+            if skill.name not in seen_names:
+                aliases.append(skill.name)
+                seen_names.add(skill.name)
             commands.append(
                 SlashCommand(
                     name=name,
                     func=self._make_skill_runner(skill),
                     description=skill.description or "",
-                    aliases=[],
+                    aliases=aliases,
                 )
             )
             seen_names.add(name)
@@ -834,6 +886,59 @@ class KimiSoul:
 
         _run_skill.__doc__ = skill.description
         return _run_skill
+
+    async def _drain_mailbox(self) -> bool:
+        """Drain unread messages from the agent's mailbox and inject them.
+
+        Returns True if any messages were injected, forcing another LLM step.
+        """
+        if self._agent_id is None:
+            return False
+
+        from kimi_cli.subagents.mailbox import TeammateMailbox
+
+        mailbox = TeammateMailbox(self._agent_id)
+        try:
+            messages = await mailbox.read_all(unread_only=True)
+        except Exception:
+            logger.debug("Failed to read mailbox for {agent_id}", agent_id=self._agent_id)
+            return False
+
+        if not messages:
+            return False
+
+        injected = False
+        for msg in messages:
+            try:
+                await mailbox.mark_read(msg.id)
+            except Exception:
+                pass
+
+            if msg.type == "user_message":
+                content = msg.payload.get("content", "")
+                if content:
+                    logger.info(
+                        "Mailbox message injected for {agent_id} from {sender}",
+                        agent_id=self._agent_id,
+                        sender=msg.sender,
+                    )
+                    wire_send(
+                        StatusEvent(
+                            message=f"New message from {msg.sender} via mailbox."
+                        )
+                    )
+                    await self._context.append_message(
+                        Message(role="user", content=content)
+                    )
+                    injected = True
+            elif msg.type == "shutdown":
+                logger.info(
+                    "Mailbox shutdown request received for {agent_id}",
+                    agent_id=self._agent_id,
+                )
+                raise RunCancelled("Shutdown requested via mailbox.")
+
+        return injected
 
     async def _agent_loop(self) -> TurnOutcome:
         """The main agent loop for one run."""
@@ -926,6 +1031,10 @@ class KimiSoul:
                 has_steers = await self._consume_pending_steers()
                 if has_steers:
                     continue  # steers injected, force another LLM step
+                # Check mailbox before finishing the turn
+                mailbox_injected = await self._drain_mailbox()
+                if mailbox_injected:
+                    continue
                 final_message = (
                     step_outcome.assistant_message
                     if step_outcome.stop_reason == "no_tool_calls"
@@ -944,6 +1053,10 @@ class KimiSoul:
 
             # Consume any pending steers between steps
             await self._consume_pending_steers()
+            # Check mailbox between steps
+            mailbox_injected = await self._drain_mailbox()
+            if mailbox_injected:
+                continue
 
     async def _step(self) -> StepOutcome | None:
         """Run a single step and return a stop outcome, or None to continue."""

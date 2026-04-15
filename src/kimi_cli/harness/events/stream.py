@@ -115,6 +115,15 @@ class PermissionEvent:
     timestamp: datetime = field(default_factory=lambda: datetime.now(UTC))
 
 
+@dataclass(frozen=True)
+class AssistantTurnComplete:
+    """Assistant 回合完成事件。"""
+
+    message: dict[str, Any] | None = None
+    usage: dict[str, Any] | None = None
+    timestamp: datetime = field(default_factory=lambda: datetime.now(UTC))
+
+
 # ---------------------------------------------------------------------------
 # 联合类型
 # ---------------------------------------------------------------------------
@@ -129,6 +138,7 @@ HarnessStreamEvent = (
     | SubagentEvent
     | TurnEvent
     | PermissionEvent
+    | AssistantTurnComplete
 )
 
 # 事件类型名称映射（用于 JSON 序列化）
@@ -142,6 +152,7 @@ _EVENT_TYPE_MAP: dict[type, str] = {
     SubagentEvent: "subagent",
     TurnEvent: "turn",
     PermissionEvent: "permission",
+    AssistantTurnComplete: "assistant_turn_complete",
 }
 
 
@@ -235,6 +246,12 @@ def event_from_dict(data: dict[str, Any]) -> HarnessStreamEvent:
                 tool_name=data["tool_name"],
                 decision=data.get("decision", "confirm"),
                 reason=data.get("reason", ""),
+                timestamp=ts,
+            )
+        case "assistant_turn_complete":
+            return AssistantTurnComplete(
+                message=data.get("message"),
+                usage=data.get("usage"),
                 timestamp=ts,
             )
         case _:

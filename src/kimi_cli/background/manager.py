@@ -271,6 +271,30 @@ class BackgroundTaskManager:
         except (FileNotFoundError, ValueError):
             return None
 
+    def update_task(
+        self,
+        task_id: str,
+        *,
+        description: str | None = None,
+        progress: int | None = None,
+        status_note: str | None = None,
+    ) -> TaskView:
+        """Update task metadata for progress tracking."""
+        self._ensure_root()
+        view = self._store.merged_view(task_id)
+        spec = view.spec.model_copy()
+        if description is not None:
+            spec.description = description
+        meta = dict(spec.metadata) if spec.metadata is not None else {}
+        if progress is not None:
+            meta["progress"] = progress
+        if status_note is not None:
+            meta["status_note"] = status_note
+        if meta:
+            spec.metadata = meta
+        self._store.write_spec(spec)
+        return self._store.merged_view(task_id)
+
     def resolve_output_path(self, task_id: str) -> Path:
         """Return the canonical output path for *task_id*."""
         return self._store.output_path(task_id)

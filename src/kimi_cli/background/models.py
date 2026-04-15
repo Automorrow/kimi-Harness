@@ -51,6 +51,7 @@ class TaskSpec(BaseModel):
     cwd: str | None = None
     timeout_s: int | None = None
     kind_payload: dict[str, Any] | None = None
+    metadata: dict[str, Any] | None = None
 
 
 class TaskRuntime(BaseModel):
