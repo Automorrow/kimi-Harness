@@ -15,7 +15,7 @@ from kimi_cli.utils.logging import logger
 
 
 def get_metadata_file() -> Path:
-    return get_share_dir() / "harness.json"
+    return get_share_dir() / "kimi.json"
 
 
 class WorkDirMeta(BaseModel):

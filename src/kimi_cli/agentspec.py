@@ -50,37 +50,6 @@ class AgentSpec(BaseModel):
         default=inherit, description="Subagents"
     )
 
-    # --- Harness 扩展字段 ---
-    permission_mode: str | None = Field(
-        default=None,
-        description="Permission mode: default|full_auto|plan|dont_ask|accept_edits",
-    )
-    max_turns: int | None = Field(
-        default=None, description="Maximum agentic turns before stopping"
-    )
-    memory: str | None = Field(
-        default=None, description="Memory scope: none|project|global"
-    )
-    isolation: str | None = Field(
-        default=None,
-        description=(
-            "Isolation mode: none|command|docker "
-            "(worktree/remote are aliases)"
-        ),
-    )
-    skills: list[str] | None = Field(
-        default=None, description="Skill names to load for this agent"
-    )
-    hooks: dict[str, Any] | None = Field(
-        default=None, description="Session-scoped hooks"
-    )
-    background: bool | None = Field(
-        default=None, description="Always run as background task"
-    )
-    color: str | None = Field(
-        default=None, description="UI color for this agent"
-    )
-
 
 class SubagentSpec(BaseModel):
     """Subagent specification."""
@@ -102,15 +71,6 @@ class ResolvedAgentSpec:
     allowed_tools: list[str] | None
     exclude_tools: list[str]
     subagents: dict[str, SubagentSpec]
-    # --- Harness 扩展字段 ---
-    permission_mode: str | None = None
-    max_turns: int | None = None
-    memory: str | None = None
-    isolation: str | None = None
-    skills: list[str] | None = None
-    hooks: dict[str, Any] | None = None
-    background: bool | None = None
-    color: str | None = None
 
 
 def load_agent_spec(agent_file: Path) -> ResolvedAgentSpec:
@@ -145,14 +105,6 @@ def load_agent_spec(agent_file: Path) -> ResolvedAgentSpec:
         allowed_tools=agent_spec.allowed_tools,
         exclude_tools=agent_spec.exclude_tools or [],
         subagents=agent_spec.subagents or {},
-        permission_mode=agent_spec.permission_mode,
-        max_turns=agent_spec.max_turns,
-        memory=agent_spec.memory,
-        isolation=agent_spec.isolation,
-        skills=agent_spec.skills,
-        hooks=agent_spec.hooks,
-        background=agent_spec.background,
-        color=agent_spec.color,
     )
 
 
@@ -204,22 +156,5 @@ def _load_agent_spec(agent_file: Path) -> AgentSpec:
             base_agent_spec.exclude_tools = agent_spec.exclude_tools
         if not isinstance(agent_spec.subagents, Inherit):
             base_agent_spec.subagents = agent_spec.subagents
-        # --- 合并 Harness 扩展字段 ---
-        if agent_spec.permission_mode is not None:
-            base_agent_spec.permission_mode = agent_spec.permission_mode
-        if agent_spec.max_turns is not None:
-            base_agent_spec.max_turns = agent_spec.max_turns
-        if agent_spec.memory is not None:
-            base_agent_spec.memory = agent_spec.memory
-        if agent_spec.isolation is not None:
-            base_agent_spec.isolation = agent_spec.isolation
-        if agent_spec.skills is not None:
-            base_agent_spec.skills = agent_spec.skills
-        if agent_spec.hooks is not None:
-            base_agent_spec.hooks = agent_spec.hooks
-        if agent_spec.background is not None:
-            base_agent_spec.background = agent_spec.background
-        if agent_spec.color is not None:
-            base_agent_spec.color = agent_spec.color
         agent_spec = base_agent_spec
     return agent_spec

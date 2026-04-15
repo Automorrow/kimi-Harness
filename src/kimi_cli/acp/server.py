@@ -288,52 +288,7 @@ class ACPServer:
     async def fork_session(
         self, cwd: str, session_id: str, mcp_servers: list[MCPServer] | None = None, **kwargs: Any
     ) -> acp.schema.ForkSessionResponse:
-        self._check_auth()
-        if session_id not in self.sessions:
-            logger.error("Session not found: {id}", id=session_id)
-            raise acp.RequestError.invalid_params({"session_id": "Session not found"})
-
-        acp_session, _ = self.sessions[session_id]
-        source_session = acp_session.cli.soul.runtime.session
-        work_dir = source_session.work_dir
-
-        from kimi_cli.session_fork import fork_session as do_fork
-
-        new_session_id = await do_fork(
-            source_session_dir=source_session.dir,
-            work_dir=work_dir,
-            turn_index=None,
-            title_prefix="Fork",
-            source_title=source_session.title,
-        )
-
-        new_session = await Session.find(work_dir, new_session_id)
-        if new_session is None:
-            raise acp.RequestError.invalid_params({"session_id": "Forked session not found"})
-
-        mcp_config = acp_mcp_servers_to_mcp_config(mcp_servers or [])
-        cli_instance = await KimiCLI.create(
-            new_session,
-            mcp_configs=[mcp_config],
-        )
-        config = cli_instance.soul.runtime.config
-        acp_kaos = ACPKaos(self.conn, new_session.id, self.client_capabilities)
-        new_acp_session = ACPSession(new_session.id, cli_instance, self.conn, kaos=acp_kaos)
-        model_id_conv = _ModelIDConv(config.default_model, config.default_thinking)
-        self.sessions[new_session.id] = (new_acp_session, model_id_conv)
-
-        if isinstance(cli_instance.soul.agent.toolset, KimiToolset):
-            replace_tools(
-                self.client_capabilities,
-                self.conn,
-                new_session.id,
-                cli_instance.soul.agent.toolset,
-                cli_instance.soul.runtime,
-            )
-
-        return acp.schema.ForkSessionResponse(
-            session_id=new_session.id,
-        )
+        raise NotImplementedError
 
     async def list_sessions(
         self, cursor: str | None = None, cwd: str | None = None, **kwargs: Any
@@ -451,11 +406,10 @@ class ACPServer:
         await acp_session.cancel()
 
     async def ext_method(self, method: str, params: dict[str, Any]) -> dict[str, Any]:
-        logger.warning("ACP ext_method not implemented: {method}", method=method)
-        raise acp.RequestError.invalid_request(f"Extension method '{method}' is not supported")
+        raise NotImplementedError
 
     async def ext_notification(self, method: str, params: dict[str, Any]) -> None:
-        logger.debug("ACP ext_notification ignored: {method}", method=method)
+        raise NotImplementedError
 
 
 class _ModelIDConv(NamedTuple):

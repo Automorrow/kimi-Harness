@@ -48,8 +48,3 @@ def test_flow_skill_registers_skill_and_flow_commands(runtime: Runtime, tmp_path
     command_names = {cmd.name for cmd in soul.available_slash_commands}
     assert "skill:flow-skill" in command_names
     assert "flow:flow-skill" in command_names
-
-    # Short-name alias should also be registered
-    alias_map = soul._index_slash_commands(list(soul.available_slash_commands))
-    assert "flow-skill" in alias_map
-    assert alias_map["flow-skill"].name == "skill:flow-skill"

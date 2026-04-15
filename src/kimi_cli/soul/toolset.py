@@ -296,59 +296,6 @@ class KimiToolset:
             servers=servers,
         )
 
-    async def list_mcp_resources(self) -> list[dict[str, str]]:
-        """List all resources from connected MCP servers."""
-        resources: list[dict[str, str]] = []
-        for server_name, server_info in self._mcp_servers.items():
-            if server_info.status != "connected":
-                continue
-            try:
-                async with server_info.client as client:
-                    for resource in await client.list_resources():
-                        resources.append(
-                            {
-                                "server": server_name,
-                                "uri": getattr(resource, "uri", str(resource)),
-                                "description": getattr(resource, "description", "") or "",
-                            }
-                        )
-            except Exception as e:
-                logger.warning(
-                    "Failed to list MCP resources for server {server_name}: {error}",
-                    server_name=server_name,
-                    error=e,
-                )
-        return resources
-
-    async def read_mcp_resource(self, server_name: str, uri: str) -> str:
-        """Read a resource from a specific MCP server."""
-        server_info = self._mcp_servers.get(server_name)
-        if server_info is None or server_info.status != "connected":
-            raise RuntimeError(f"MCP server '{server_name}' is not connected")
-        try:
-            async with server_info.client as client:
-                result = await client.read_resource(uri)
-                parts: list[str] = []
-                # fastmcp read_resource returns a list-like object of content items
-                items = result.contents if hasattr(result, "contents") else result
-                if not isinstance(items, (list, tuple)):
-                    items = [items]
-                for item in items:
-                    text = getattr(item, "text", None)
-                    if text is not None:
-                        parts.append(str(text))
-                    else:
-                        parts.append(str(item))
-                return "\n".join(parts).strip() or "(no content)"
-        except Exception as e:
-            logger.error(
-                "Failed to read MCP resource {uri} from server {server_name}: {error}",
-                uri=uri,
-                server_name=server_name,
-                error=e,
-            )
-            raise
-
     def defer_mcp_tool_loading(self, mcp_configs: list[MCPConfig], runtime: Runtime) -> None:
         """Store MCP configs for a later background startup."""
         self._deferred_mcp_load = (list(mcp_configs), runtime)

@@ -3,7 +3,7 @@ from __future__ import annotations
 from functools import cache
 from typing import TYPE_CHECKING
 
-NAME = "Kimi Harness"
+NAME = "Kimi Code CLI"
 
 if TYPE_CHECKING:
     VERSION: str
@@ -14,12 +14,12 @@ if TYPE_CHECKING:
 def get_version() -> str:
     from importlib import metadata
 
-    return metadata.version("kimi-harness")
+    return metadata.version("kimi-cli")
 
 
 @cache
 def get_user_agent() -> str:
-    return f"KimiCLI/{get_version()} (Harness)"
+    return f"KimiCLI/{get_version()}"
 
 
 def __getattr__(name: str) -> str:

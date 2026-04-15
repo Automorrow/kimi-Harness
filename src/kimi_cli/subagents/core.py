@@ -82,5 +82,5 @@ async def prepare_soul(
     store.prompt_path(spec.agent_id).write_text(prompt, encoding="utf-8")
 
     # 6. Create soul
-    soul = KimiSoul(agent, context=context, agent_id=spec.agent_id)
+    soul = KimiSoul(agent, context=context)
     return soul, prompt

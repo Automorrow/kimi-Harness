@@ -259,41 +259,6 @@ def wire_send(msg: WireMessage) -> None:
     assert wire is not None, "Wire is expected to be set when soul is running"
     wire.soul_side.send(msg)
 
-    # --- Harness StreamEvent 桥接（可选） ---
-    _emit_harness_event(msg)
-
-
-# ---------------------------------------------------------------------------
-# Harness StreamEvent 桥接
-# ---------------------------------------------------------------------------
-
-_harness_stream_enabled: bool = False
-
-
-def enable_harness_stream(enabled: bool = True) -> None:
-    """启用/禁用 Harness 统一流式事件桥接。
-
-    启用后，每次 wire_send() 都会尝试将 WireMessage 转换为
-    HarnessStreamEvent 并以 debug 日志输出。
-    """
-    global _harness_stream_enabled
-    _harness_stream_enabled = enabled
-
-
-def _emit_harness_event(msg: WireMessage) -> None:
-    """将 WireMessage 转换为 HarnessStreamEvent 并记录。"""
-    if not _harness_stream_enabled:
-        return
-    try:
-        from kimi_cli.harness.events.stream import WireToStreamAdapter, event_to_json
-
-        event = WireToStreamAdapter.convert(msg)
-        if event is not None:
-            json_str = event_to_json(event)
-            logger.debug("HarnessStreamEvent: {event}", event=json_str)
-    except Exception:
-        logger.debug("Failed to convert wire message to harness event", exc_info=True)
-
 
 async def _pump_notifications_to_wire(runtime: Runtime | None, wire: Wire) -> None:
     while True:

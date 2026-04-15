@@ -3,7 +3,6 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import dataclasses
-import os
 import warnings
 from collections.abc import AsyncGenerator, Callable
 from pathlib import Path
@@ -273,12 +272,6 @@ class KimiCLI:
         soul.set_hook_engine(hook_engine)
         runtime.hook_engine = hook_engine
 
-        # --- Harness 全局配置（环境变量驱动） ---
-        if os.environ.get("KIMI_HARNESS_STREAM", "").lower() in ("true", "1", "yes"):
-            from kimi_cli.soul import enable_harness_stream
-
-            enable_harness_stream(enabled=True)
-
         return KimiCLI(soul, runtime, env_overrides)
 
     def __init__(
@@ -526,7 +519,7 @@ class KimiCLI:
                 welcome_info.append(
                     WelcomeInfoItem(
                         name="Tip",
-                        value="send /login to use Kimi for Code",
+                        value="send /login to use Kimi for Coding",
                         level=WelcomeInfoItem.Level.WARN,
                     )
                 )

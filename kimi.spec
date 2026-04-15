@@ -31,7 +31,7 @@ if onedir_mode:
         pyz,
         a.scripts,
         exclude_binaries=True,
-        name="kimi-harness-exe",
+        name="kimi-exe",
         debug=False,
         bootloader_ignore_signals=False,
         strip=False,
@@ -52,7 +52,7 @@ if onedir_mode:
         strip=False,
         upx=True,
         upx_exclude=[],
-        name="kimi-harness",
+        name="kimi",
     )
 else:
     # one-file mode (default): all binaries/datas bundled into single executable
@@ -62,7 +62,7 @@ else:
         a.binaries,
         a.datas,
         [],
-        name="kimi-harness",
+        name="kimi",
         debug=False,
         bootloader_ignore_signals=False,
         strip=False,

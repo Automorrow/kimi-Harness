@@ -24,7 +24,7 @@ if TYPE_CHECKING:
 
 
 def get_plugins_dir() -> Path:
-    """Return the plugins installation directory (~/.kimi-harness/plugins/)."""
+    """Return the plugins installation directory (~/.kimi/plugins/)."""
     return get_share_dir() / "plugins"
 
 

@@ -182,19 +182,6 @@ async def load_agents_md(work_dir: KaosPath) -> str | None:
     return "\n\n".join(parts) if parts else None
 
 
-def _create_team_coordinator() -> Any:
-    """创建 Harness TeamCoordinator 实例（失败时返回 None）。"""
-    try:
-        from kimi_cli.harness.coordinator.team import TeamCoordinator
-
-        return TeamCoordinator()
-    except Exception:
-        from kimi_cli import logger
-
-        logger.debug("Failed to create Harness TeamCoordinator", exc_info=True)
-        return None
-
-
 @dataclass(slots=True, kw_only=True)
 class Runtime:
     """Agent runtime."""
@@ -221,15 +208,6 @@ class Runtime:
     role: Literal["root", "subagent"] = "root"
     hook_engine: Any = None
     """HookEngine instance, set by KimiCLI after soul creation."""
-    # --- Harness 扩展字段 ---
-    memory_manager: Any = None
-    """Harness MemoryManager instance, set by load_agent()."""
-    tool_registry: Any = None
-    """Harness ToolRegistry instance, set by load_agent()."""
-    sandbox_executor: Any = None
-    """Harness SandboxExecutor instance, set by load_agent()."""
-    team_coordinator: Any = None
-    """Harness TeamCoordinator instance, set by Runtime.create()."""
 
     def __post_init__(self) -> None:
         if self.subagent_store is None:
@@ -241,9 +219,6 @@ class Runtime:
         self.approval_runtime.bind_root_wire_hub(self.root_wire_hub)
         self.approval.set_runtime(self.approval_runtime)
         self.background_tasks.bind_runtime(self)
-        # 回填 TeamCoordinator 的 Runtime 引用
-        if self.team_coordinator is not None:
-            self.team_coordinator.set_runtime(self)
 
     @staticmethod
     async def create(
@@ -369,8 +344,6 @@ class Runtime:
             approval_runtime=ApprovalRuntime(),
             root_wire_hub=RootWireHub(),
             role="root",
-            # --- Harness 扩展字段 ---
-            team_coordinator=_create_team_coordinator(),
         )
 
     def copy_for_subagent(
@@ -403,11 +376,6 @@ class Runtime:
             subagent_id=agent_id,
             subagent_type=subagent_type,
             role="subagent",
-            # --- Harness 扩展字段共享 ---
-            memory_manager=self.memory_manager,
-            tool_registry=self.tool_registry,
-            sandbox_executor=self.sandbox_executor,
-            team_coordinator=self.team_coordinator,
         )
 
 
@@ -450,45 +418,6 @@ async def load_agent(
         runtime.builtin_args,
     )
 
-    # --- [P0] Harness PermissionChecker 初始化 ---
-    if agent_spec.permission_mode:
-        try:
-            from kimi_cli.harness.permissions.checker import (
-                PermissionChecker,
-                PermissionMode,
-                create_default_settings,
-            )
-            settings = create_default_settings()
-            try:
-                settings.mode = PermissionMode(agent_spec.permission_mode)
-            except ValueError:
-                logger.warning(
-                    "Unknown permission mode: {mode}, falling back to default",
-                    mode=agent_spec.permission_mode,
-                )
-            runtime.approval.set_permission_checker(PermissionChecker(settings))
-            logger.info("Harness PermissionChecker enabled: mode={mode}", mode=settings.mode)
-        except Exception:
-            logger.debug("Failed to initialize Harness PermissionChecker", exc_info=True)
-
-    # --- [P1] Harness MemoryManager 注入 ---
-    if agent_spec.memory and agent_spec.memory != "none":
-        try:
-            from kimi_cli.harness.memory.manager import MemoryManager
-
-            memory_manager = MemoryManager(work_dir=str(runtime.session.work_dir))
-            memory_prompt = memory_manager.load_memory_prompt()
-            if memory_prompt:
-                system_prompt = system_prompt + "\n\n" + memory_prompt
-                logger.info(
-                    "Injected memory prompt ({len} chars) into system prompt",
-                    len=len(memory_prompt),
-                )
-            runtime.memory_manager = memory_manager
-            logger.info("Harness MemoryManager enabled: scope={scope}", scope=agent_spec.memory)
-        except Exception:
-            logger.warning("Failed to initialize Harness MemoryManager", exc_info=True)
-
     # Register built-in subagent types before loading tools because some tools render
     # descriptions from the labor market on initialization.
     for subagent_name, subagent_spec in agent_spec.subagents.items():
@@ -524,7 +453,6 @@ async def load_agent(
         Approval: runtime.approval,
         LaborMarket: runtime.labor_market,
         Environment: runtime.environment,
-        Runtime: runtime,
     }
     tools = agent_spec.allowed_tools if agent_spec.allowed_tools is not None else agent_spec.tools
     if agent_spec.exclude_tools:
@@ -564,37 +492,6 @@ async def load_agent(
             await toolset.load_mcp_tools(validated_mcp_configs, runtime, in_background=True)
         else:
             toolset.defer_mcp_tool_loading(validated_mcp_configs, runtime)
-
-    # --- [P3] Harness ToolRegistry 桥接 ---
-    try:
-        from kimi_cli.harness.tools.base import toolset_to_registry
-
-        runtime.tool_registry = toolset_to_registry(toolset)
-        logger.info(
-            "Bridged {count} tools to Harness ToolRegistry",
-            count=len(runtime.tool_registry),
-        )
-    except Exception:
-        logger.debug("Failed to bridge tools to Harness ToolRegistry", exc_info=True)
-
-    # --- [P4] Harness SandboxExecutor 初始化 ---
-    if agent_spec.isolation and agent_spec.isolation != "none":
-        try:
-            from kimi_cli.harness.sandbox.executor import SandboxMode, create_sandbox_executor
-
-            _ISOLATION_TO_SANDBOX: dict[str, SandboxMode] = {
-                "none": SandboxMode.NONE,
-                "command": SandboxMode.COMMAND,
-                "docker": SandboxMode.DOCKER,
-                # 向后兼容别名
-                "worktree": SandboxMode.COMMAND,
-                "remote": SandboxMode.DOCKER,
-            }
-            mode = _ISOLATION_TO_SANDBOX.get(agent_spec.isolation, SandboxMode.NONE)
-            runtime.sandbox_executor = create_sandbox_executor(mode)
-            logger.info("Harness SandboxExecutor enabled: mode={mode}", mode=mode)
-        except Exception:
-            logger.debug("Failed to initialize Harness SandboxExecutor", exc_info=True)
 
     return Agent(
         name=agent_spec.name,
