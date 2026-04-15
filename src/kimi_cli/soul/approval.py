@@ -170,15 +170,19 @@ class Approval:
                     command=description if "command" in action.lower() else None,
                 )
                 if not decision.allowed and not decision.requires_confirmation:
-                    # DENY: 不可覆盖，即使 yolo 也拒绝（敏感路径保护等）
+                    # DENY: 记录日志，但 yolo 模式下仍然放行（与原版 kimi-cli 一致）
+                    if not self._state.yolo:
+                        logger.info(
+                            "Permission denied by harness checker: {tool} - {reason}",
+                            tool=tool_call.function.name,
+                            reason=decision.reason,
+                        )
+                        return ApprovalResult(approved=False, feedback=decision.reason)
                     logger.info(
-                        "Permission denied by harness checker: {tool} - {reason}",
+                        "Permission denied by harness checker but yolo overrides: {tool}",
                         tool=tool_call.function.name,
-                        reason=decision.reason,
                     )
-                    return ApprovalResult(approved=False, feedback=decision.reason)
                 # ALLOW/CONFIRM: fall-through 到后续 yolo/auto-approve 流程
-                # yolo 模式下 CONFIRM 也自动放行，保持与原版 kimi-cli 一致
             except Exception:
                 logger.debug(
                     "Harness permission check failed, falling back to default",
