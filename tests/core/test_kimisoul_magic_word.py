@@ -43,7 +43,7 @@ def _setup_soul_run(
     sent: list[object] = []
 
     async def fake_step() -> StepResult:
-        return StepResult(message=Message.assistant("done"))
+        return StepResult(message=Message(role="assistant", content=[TextPart(type="text", text="done")]))
 
     async def fake_checkpoint() -> None:
         return None
