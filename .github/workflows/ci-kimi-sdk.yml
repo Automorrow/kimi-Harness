@@ -17,8 +17,39 @@ on:
       - "uv.lock"
 
 jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.14
+        id: setup-python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+          allow-prereleases: true
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v1
+        with:
+          version: "0.8.5"
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      - name: Install dependencies
+        env:
+          UV_PYTHON: ${{ steps.setup-python.outputs.python-path }}
+        run: uv sync --frozen --all-extras --project sdks/kimi-sdk
+
+      - name: Run checks
+        env:
+          UV_PYTHON: ${{ steps.setup-python.outputs.python-path }}
+        run: make check-kimi-sdk
+
   test:
     runs-on: ubuntu-latest
+    needs: check
     strategy:
       matrix:
         python-version: ["3.12", "3.13", "3.14"]
@@ -44,11 +75,6 @@ jobs:
         env:
           UV_PYTHON: ${{ steps.setup-python.outputs.python-path }}
         run: uv sync --frozen --all-extras --project sdks/kimi-sdk
-
-      - name: Run checks
-        env:
-          UV_PYTHON: ${{ steps.setup-python.outputs.python-path }}
-        run: make check-kimi-sdk
 
       - name: Run tests
         env:

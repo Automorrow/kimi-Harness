@@ -4,6 +4,10 @@ on:
   push:
     branches:
       - main
+    paths:
+      - "docs/**"
+      - "CHANGELOG.md"
+      - ".github/workflows/docs-pages.yml"
 
 permissions:
   contents: read

@@ -65,29 +65,29 @@ format-web: ## Auto-format web sources with npm run format.
 .PHONY: check check-kimi-cli check-kosong check-pykaos check-kimi-sdk check-web
 check: check-kimi-cli check-kosong check-pykaos check-kimi-sdk check-web ## Run linting and type checks for all packages.
 check-kimi-cli: ## Run linting and type checks for Kimi Code CLI.
-	@echo "==> Checking Kimi Code CLI (ruff + pyright + ty; ty is non-blocking)"
+	@echo "==> Checking Kimi Code CLI (ruff + pyright + ty)"
 	@uv run ruff check
 	@uv run ruff format --check
 	@uv run pyright
-	@uv run ty check || true
+	@uv run ty check
 check-kosong: ## Run linting and type checks for kosong.
-	@echo "==> Checking kosong (ruff + pyright + ty; ty is non-blocking)"
+	@echo "==> Checking kosong (ruff + pyright + ty)"
 	@uv run --project packages/kosong --directory packages/kosong ruff check
 	@uv run --project packages/kosong --directory packages/kosong ruff format --check
 	@uv run --project packages/kosong --directory packages/kosong pyright
-	@uv run --project packages/kosong --directory packages/kosong ty check || true
+	@uv run --project packages/kosong --directory packages/kosong ty check
 check-pykaos: ## Run linting and type checks for pykaos.
-	@echo "==> Checking pykaos (ruff + pyright + ty; ty is non-blocking)"
+	@echo "==> Checking pykaos (ruff + pyright + ty)"
 	@uv run --project packages/kaos --directory packages/kaos ruff check
 	@uv run --project packages/kaos --directory packages/kaos ruff format --check
 	@uv run --project packages/kaos --directory packages/kaos pyright
-	@uv run --project packages/kaos --directory packages/kaos ty check || true
+	@uv run --project packages/kaos --directory packages/kaos ty check
 check-kimi-sdk: ## Run linting and type checks for kimi-sdk.
-	@echo "==> Checking kimi-sdk (ruff + pyright + ty; ty is non-blocking)"
+	@echo "==> Checking kimi-sdk (ruff + pyright + ty)"
 	@uv run --project sdks/kimi-sdk --directory sdks/kimi-sdk ruff check
 	@uv run --project sdks/kimi-sdk --directory sdks/kimi-sdk ruff format --check
 	@uv run --project sdks/kimi-sdk --directory sdks/kimi-sdk pyright
-	@uv run --project sdks/kimi-sdk --directory sdks/kimi-sdk ty check || true
+	@uv run --project sdks/kimi-sdk --directory sdks/kimi-sdk ty check
 check-web: ## Run linting and type checks for web.
 	@echo "==> Checking web (biome + tsc)"
 	@if command -v npm >/dev/null 2>&1; then \

@@ -96,6 +96,25 @@ jobs:
           PYTHONUTF8: "1"
         run: make test-kimi-cli
 
+  check-web:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install web dependencies
+        run: npm --prefix web ci
+
+      - name: Run web checks
+        run: make check-web
+
   build:
     strategy:
       fail-fast: true
@@ -122,11 +141,12 @@ jobs:
         if: runner.os == 'Windows'
         run: choco install make -y
 
-      - name: Set up Python 3.13
+      - name: Set up Python 3.14
         id: setup-python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.13"
+          python-version: "3.14"
+          allow-prereleases: true
 
       - name: Set up uv
         uses: astral-sh/setup-uv@v1
