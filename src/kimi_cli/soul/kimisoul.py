@@ -327,11 +327,11 @@ class KimiSoul:
             if checker is None:
                 return
             if plan_mode_enabled:
-                if checker.settings.mode != PermissionMode.PLAN:
-                    checker.settings.mode = PermissionMode.PLAN
+                if checker.mode != PermissionMode.PLAN:
+                    checker.set_mode(PermissionMode.PLAN)
             else:
-                if checker.settings.mode == PermissionMode.PLAN:
-                    checker.settings.mode = PermissionMode.DEFAULT
+                if checker.mode == PermissionMode.PLAN:
+                    checker.set_mode(PermissionMode.DEFAULT)
         except Exception:
             logger.debug("Failed to sync PermissionChecker plan mode", exc_info=True)
 
@@ -348,7 +348,7 @@ class KimiSoul:
             checker = self._runtime.approval._permission_checker
             if checker is None:
                 return
-            checker_is_plan = checker.settings.mode == PermissionMode.PLAN
+            checker_is_plan = checker.mode == PermissionMode.PLAN
             if checker_is_plan and not self._plan_mode:
                 self._plan_mode = True
                 self._runtime.session.state.plan_mode = True
@@ -358,7 +358,7 @@ class KimiSoul:
                     "_plan_mode was False, synced to True"
                 )
             elif not checker_is_plan and self._plan_mode:
-                checker.settings.mode = PermissionMode.PLAN
+                checker.set_mode(PermissionMode.PLAN)
                 logger.info(
                     "Plan mode consistency fix: _plan_mode was True but "
                     "PermissionChecker was not PLAN, synced to PLAN"
@@ -549,7 +549,6 @@ class KimiSoul:
             settings = create_default_settings()
             with contextlib.suppress(ValueError):
                 settings.mode = PermissionMode(permission_mode)
-            # 幂等保护：仅在未设置时才创建 PermissionChecker
             if not runtime.approval.has_permission_checker:
                 runtime.approval.set_permission_checker(PermissionChecker(settings))
                 logger.info(
@@ -557,7 +556,14 @@ class KimiSoul:
                     mode=settings.mode,
                 )
             else:
-                logger.debug("Harness magic word: PermissionChecker already set, skipping")
+                # 已存在时更新 mode，确保魔法词的 permission_mode 生效
+                checker = runtime.approval._permission_checker
+                if checker is not None and checker.mode != settings.mode:
+                    checker.set_mode(settings.mode)
+                    logger.info(
+                        "Harness magic word: PermissionChecker mode updated to {mode}",
+                        mode=settings.mode,
+                    )
         except Exception:
             logger.debug("Failed to enable PermissionChecker via magic word", exc_info=True)
 

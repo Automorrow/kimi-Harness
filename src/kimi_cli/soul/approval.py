@@ -157,7 +157,9 @@ class Approval:
                 if description:
                     import re
 
-                    match = re.search(r'(?:file|path)\s+([^\s,;)]+)', description, re.IGNORECASE)
+                    match = re.search(
+                        r'(?:file|path)\s+`?([^`\s,;)]+)`?', description, re.IGNORECASE
+                    )
                     if match:
                         _file_path = match.group(1)
 

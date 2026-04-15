@@ -243,8 +243,14 @@ class PermissionChecker:
 
         if mode == PermissionMode.ACCEPT_EDITS:
             # 编辑类工具自动放行，其他写操作仍需确认
-            edit_tools = {"write_file", "str_replace_file", "file_edit", "file_write"}
-            if tool_name.lower() in edit_tools:
+            # 工具名可能是 PascalCase (WriteFile) 或 snake_case (write_file)
+            edit_tools = {
+                "write_file", "str_replace_file", "file_edit", "file_write",
+                "writefile", "strreplacefile", "fileedit", "filewrite",
+            }
+            if tool_name.lower().replace("_", "") in {
+                "writefile", "strreplacefile", "fileedit", "filewrite",
+            }:
                 return PermissionDecision.allow("Accept-edits mode allows file edits")
             return PermissionDecision.confirm(
                 "Non-edit mutating tools require confirmation in accept-edits mode"
