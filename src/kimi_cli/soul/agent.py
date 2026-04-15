@@ -524,6 +524,7 @@ async def load_agent(
         Approval: runtime.approval,
         LaborMarket: runtime.labor_market,
         Environment: runtime.environment,
+        Runtime: runtime,
     }
     tools = agent_spec.allowed_tools if agent_spec.allowed_tools is not None else agent_spec.tools
     if agent_spec.exclude_tools:
