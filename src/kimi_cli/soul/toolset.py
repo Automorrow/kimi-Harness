@@ -5,6 +5,7 @@ import contextlib
 import importlib
 import inspect
 import json
+import sys
 import time
 from contextvars import ContextVar
 from dataclasses import dataclass
@@ -424,9 +425,24 @@ class KimiToolset:
                     # once we encounter a keyword-only parameter, we stop injecting dependencies
                     break
                 # all positional parameters should be dependencies to be injected
-                if param.annotation not in dependencies:
+                # Handle string annotations from `from __future__ import annotations`
+                annotation = param.annotation
+                if isinstance(annotation, str):
+                    # Resolve string annotation to actual type
+                    resolved = dependencies.get(annotation)
+                    if resolved is not None:
+                        args.append(resolved)
+                        continue
+                    # Try resolving via the tool module's globals
+                    module_globals = getattr(sys.modules.get(tool_cls.__module__, None), "__dict__", {})
+                    resolved_type = module_globals.get(annotation)
+                    if resolved_type is not None and resolved_type in dependencies:
+                        args.append(dependencies[resolved_type])
+                        continue
                     raise ValueError(f"Tool dependency not found: {param.annotation}")
-                args.append(dependencies[param.annotation])
+                if annotation not in dependencies:
+                    raise ValueError(f"Tool dependency not found: {param.annotation}")
+                args.append(dependencies[annotation])
         return tool_cls(*args)
 
     # TODO(rc): remove `in_background` parameter and always load in background
