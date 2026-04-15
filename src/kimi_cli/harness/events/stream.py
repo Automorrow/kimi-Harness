@@ -340,5 +340,4 @@ class WireToStreamAdapter:
                     data = {}
                 return StatusEvent(
                     message=f"wire:{msg_type}",
-                    metadata={"wire_type": msg_type, "data": data},
                 )
