@@ -170,33 +170,22 @@ class Approval:
                     command=description if "command" in action.lower() else None,
                 )
                 if not decision.allowed and not decision.requires_confirmation:
+                    # DENY: 不可覆盖，即使 yolo 也拒绝（敏感路径保护等）
                     logger.info(
                         "Permission denied by harness checker: {tool} - {reason}",
                         tool=tool_call.function.name,
                         reason=decision.reason,
                     )
                     return ApprovalResult(approved=False, feedback=decision.reason)
-                if decision.requires_confirmation:
-                    # CONFIRM 决策跳过 yolo/auto-approve，直接走用户确认
-                    logger.info(
-                        "Permission requires confirmation by harness checker: {tool} - {reason}",
-                        tool=tool_call.function.name,
-                        reason=decision.reason,
-                    )
-                    # 不 return，fall-through 到用户确认流程（跳过下面的 yolo 检查）
-                    _harness_confirmed = True
-                else:
-                    _harness_confirmed = False
+                # ALLOW/CONFIRM: fall-through 到后续 yolo/auto-approve 流程
+                # yolo 模式下 CONFIRM 也自动放行，保持与原版 kimi-cli 一致
             except Exception:
                 logger.debug(
                     "Harness permission check failed, falling back to default",
                     exc_info=True,
                 )
-                _harness_confirmed = False
-        else:
-            _harness_confirmed = False
 
-        if not _harness_confirmed and self._state.yolo:
+        if self._state.yolo:
             return ApprovalResult(approved=True)
 
         if action in self._state.auto_approve_actions:
