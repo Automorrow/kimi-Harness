@@ -84,3 +84,18 @@ async def test_fork_session_missing_source_raises_error() -> None:
                 session_id="missing-id",
             )
     assert "Session not found" in str(exc_info.value.data)
+
+
+@pytest.mark.asyncio
+async def test_ext_method_returns_error() -> None:
+    server = ACPServer()
+    with pytest.raises(Exception) as exc_info:
+        await server.ext_method("custom/method", {"foo": "bar"})
+    assert "not supported" in str(exc_info.value.data)
+
+
+@pytest.mark.asyncio
+async def test_ext_notification_is_noop() -> None:
+    server = ACPServer()
+    # Should not raise
+    await server.ext_notification("custom/notification", {"foo": "bar"})

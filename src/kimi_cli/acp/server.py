@@ -451,10 +451,11 @@ class ACPServer:
         await acp_session.cancel()
 
     async def ext_method(self, method: str, params: dict[str, Any]) -> dict[str, Any]:
-        raise NotImplementedError
+        logger.warning("ACP ext_method not implemented: {method}", method=method)
+        raise acp.RequestError.invalid_request(f"Extension method '{method}' is not supported")
 
     async def ext_notification(self, method: str, params: dict[str, Any]) -> None:
-        raise NotImplementedError
+        logger.debug("ACP ext_notification ignored: {method}", method=method)
 
 
 class _ModelIDConv(NamedTuple):
