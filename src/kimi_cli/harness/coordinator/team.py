@@ -144,7 +144,7 @@ class TeamCoordinator:
         """
         team = Team(name=name, members=members or [])
         self._teams[name] = team
-        logger.info("Team created: {name} with {count} members", name=name, count=len(team.members))
+        logger.info("Team created: %s with %s members", name, len(team.members))
         return team
 
     def get_team(self, name: str) -> Team | None:
@@ -181,7 +181,7 @@ class TeamCoordinator:
         """
         team = self._teams.get(team_name)
         if team is None:
-            logger.error("Team not found: {name}", name=team_name)
+            logger.error("Team not found: %s", team_name)
             return []
 
         if self._runtime is None:
@@ -270,15 +270,15 @@ class TeamCoordinator:
         """
         team = self._teams.get(team_name)
         if team is None:
-            logger.error("Team not found: {name}", name=team_name)
+            logger.error("Team not found: %s", team_name)
             return
 
         for member in team.members:
             logger.info(
-                "Broadcast to {agent_type} ({agent_id}): {message}",
-                agent_type=member.agent_type,
-                agent_id=member.agent_id,
-                message=message[:100],
+                "Broadcast to %s (%s): %s",
+                member.agent_type,
+                member.agent_id,
+                message[:100],
             )
 
     def _select_targets(

@@ -96,6 +96,13 @@ class WireServer:
         self._cancel_event: asyncio.Event | None = None
         self._pending_requests: dict[str, Request] = {}
         """Maps JSON RPC message IDs to pending `Request`s."""
+        self._prompt_queue: asyncio.Queue[
+            tuple[
+                JSONRPCPromptMessage,
+                asyncio.Future[JSONRPCSuccessResponse | JSONRPCErrorResponse],
+            ]
+        ] = asyncio.Queue()
+        """Queue for prompts received while an agent turn is already in progress."""
         self._client_supports_question: bool = False
         """Whether the Wire client supports QuestionRequest."""
         self._client_supports_plan_mode: bool = False
@@ -320,6 +327,20 @@ class WireServer:
         if self._cancel_event is not None:
             self._cancel_event.set()
             self._cancel_event = None
+
+        # Reject any queued prompts that will never be processed.
+        while not self._prompt_queue.empty():
+            queued_msg, queued_future = self._prompt_queue.get_nowait()
+            if not queued_future.done():
+                queued_future.set_result(
+                    JSONRPCErrorResponse(
+                        id=queued_msg.id,
+                        error=JSONRPCErrorObject(
+                            code=ErrorCodes.INVALID_STATE,
+                            message="Wire server shut down before prompt could be processed",
+                        ),
+                    )
+                )
 
         self._write_queue.shutdown()
         if self._write_task is not None:
@@ -626,13 +647,12 @@ class WireServer:
         self, msg: JSONRPCPromptMessage
     ) -> JSONRPCSuccessResponse | JSONRPCErrorResponse:
         if self._is_streaming:
-            # TODO: support queueing multiple inputs
-            return JSONRPCErrorResponse(
-                id=msg.id,
-                error=JSONRPCErrorObject(
-                    code=ErrorCodes.INVALID_STATE, message="An agent turn is already in progress"
-                ),
+            loop = asyncio.get_running_loop()
+            future: asyncio.Future[JSONRPCSuccessResponse | JSONRPCErrorResponse] = (
+                loop.create_future()
             )
+            await self._prompt_queue.put((msg, future))
+            return await future
 
         self._cancel_event = asyncio.Event()
         runtime = self._soul.runtime if isinstance(self._soul, KimiSoul) else None
@@ -721,6 +741,21 @@ class WireServer:
                     case _:
                         pass
             self._cancel_event = None
+            # Process the next queued prompt, if any.
+            if not self._prompt_queue.empty():
+                next_msg, next_future = self._prompt_queue.get_nowait()
+                try:
+                    result = await self._handle_prompt(next_msg)
+                except Exception as exc:
+                    result = JSONRPCErrorResponse(
+                        id=next_msg.id,
+                        error=JSONRPCErrorObject(
+                            code=ErrorCodes.CHAT_PROVIDER_ERROR,
+                            message=f"Failed to process queued prompt: {exc}",
+                        ),
+                    )
+                if not next_future.done():
+                    next_future.set_result(result)
 
     async def _handle_steer(
         self, msg: JSONRPCSteerMessage
