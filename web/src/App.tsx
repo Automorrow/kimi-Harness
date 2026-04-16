@@ -16,6 +16,8 @@ import { ThemeToggle } from "./components/ui/theme-toggle";
 import type { SessionStatus } from "./lib/api/models";
 import type { PanelSize, PanelImperativeHandle } from "react-resizable-panels";
 import { consumeAuthTokenFromUrl, setAuthToken } from "./lib/auth";
+import { HarnessStatusBadge } from "./features/harness/HarnessStatusBadge";
+import { HarnessPanel } from "./features/harness/HarnessPanel";
 
 /**
  * Get session ID from URL search params
@@ -42,6 +44,26 @@ const SIDEBAR_COLLAPSED_SIZE = 48;
 const SIDEBAR_MIN_SIZE = 200;
 const SIDEBAR_DEFAULT_SIZE = 260;
 const SIDEBAR_ANIMATION_MS = 250;
+const HARNESS_PANEL_DEFAULT_SIZE = 320;
+const HARNESS_PANEL_MIN_SIZE = 280;
+
+/**
+ * Get panel param from URL search params
+ */
+function getPanelFromUrl(): string | null {
+  const params = new URLSearchParams(window.location.search);
+  return params.get("panel");
+}
+
+function updateUrlPanel(panel: string | null): void {
+  const url = new URL(window.location.href);
+  if (panel) {
+    url.searchParams.set("panel", panel);
+  } else {
+    url.searchParams.delete("panel");
+  }
+  window.history.replaceState({}, "", url.toString());
+}
 
 function App() {
   // Initialize theme on app startup
@@ -51,6 +73,9 @@ function App() {
   const sidebarPanelRef = useRef<PanelImperativeHandle | null>(null);
   const sessionsHook = useSessions();
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const [isHarnessPanelOpen, setIsHarnessPanelOpen] = useState(() => {
+    return !!getPanelFromUrl();
+  });
   const [isDesktop, setIsDesktop] = useState(() => {
     if (typeof window === "undefined") {
       return true;
@@ -145,6 +170,11 @@ function App() {
 
   const handleCloseMobileSidebar = useCallback(() => {
     setIsMobileSidebarOpen(false);
+  }, []);
+
+  const handleCloseHarnessPanel = useCallback(() => {
+    setIsHarnessPanelOpen(false);
+    updateUrlPanel(null);
   }, []);
 
   // Sidebar state
@@ -493,8 +523,26 @@ function App() {
 
               {/* Main Chat Area */}
               <ResizablePanel id="chat" className="relative min-h-0 flex justify-center flex-1">
+                {/* Harness Status Badge - positioned in top-right of chat area */}
+                <div className="absolute right-3 top-3 z-10">
+                  <HarnessStatusBadge />
+                </div>
                 {renderChatPanel()}
               </ResizablePanel>
+
+              {/* Harness Panel - collapsible right sidebar */}
+              {isHarnessPanelOpen && (
+                <ResizablePanel
+                  id="harness"
+                  collapsible
+                  defaultSize={HARNESS_PANEL_DEFAULT_SIZE}
+                  minSize={HARNESS_PANEL_MIN_SIZE}
+                  order={2}
+                  className="min-h-0 border-l overflow-hidden"
+                >
+                  <HarnessPanel onClose={handleCloseHarnessPanel} />
+                </ResizablePanel>
+              )}
             </ResizablePanelGroup>
           ) : (
             <div className="flex min-h-0 flex-1 flex-col">
