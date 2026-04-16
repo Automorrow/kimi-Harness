@@ -18,7 +18,7 @@ def web(
         bool,
         typer.Option("--network", "-n", help="Enable network access (bind to 0.0.0.0)"),
     ] = False,
-    port: Annotated[int, typer.Option("--port", "-p", help="Port to bind to")] = 5494,
+    port: Annotated[int, typer.Option("--port", "-p", help="Port to bind to")] = 5496,
     reload: Annotated[bool, typer.Option("--reload", help="Enable auto-reload")] = False,
     open_browser: Annotated[
         bool, typer.Option("--open/--no-open", help="Open browser automatically")

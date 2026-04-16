@@ -79,6 +79,12 @@ CHECKS: list[tuple[str, str, re.Pattern[str], bool]] = [
         re.compile(r'DEFAULT_PORT\s*=\s*5496'),
         True,
     ),
+    (
+        "src/kimi_cli/cli/web.py",
+        "CLI web command default port must be 5496",
+        re.compile(r'port.*=\s*5496'),
+        True,
+    ),
     # --- Keyring ---
     (
         "src/kimi_cli/auth/oauth.py",
