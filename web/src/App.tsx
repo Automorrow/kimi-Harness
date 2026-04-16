@@ -537,7 +537,6 @@ function App() {
                   collapsible
                   defaultSize={HARNESS_PANEL_DEFAULT_SIZE}
                   minSize={HARNESS_PANEL_MIN_SIZE}
-                  order={2}
                   className="min-h-0 border-l overflow-hidden"
                 >
                   <HarnessPanel onClose={handleCloseHarnessPanel} />

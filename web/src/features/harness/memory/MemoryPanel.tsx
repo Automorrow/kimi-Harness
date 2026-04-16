@@ -1,5 +1,6 @@
 import { useCallback, useState } from "react";
-import useSWR, { useSWRMutation } from "swr";
+import useSWR from "swr";
+import useSWRMutation from "swr/mutation";
 import { Brain, Plus, Search, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -82,17 +83,14 @@ export function MemoryPanel() {
     },
   );
 
-  const { trigger: deleteMemory } = useSWRMutation(
-    (name: string) =>
-      `/api/harness/memory/${encodeURIComponent(name)}?${queryParams.toString()}`,
-    async (url: string) => {
-      const res = await fetch(url, { method: "DELETE" });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({ detail: "删除失败" }));
-        throw new Error(err.detail ?? "删除失败");
-      }
-    },
-  );
+  const deleteMemory = useCallback(async (name: string) => {
+    const url = `/api/harness/memory/${encodeURIComponent(name)}?${queryParams.toString()}`;
+    const res = await fetch(url, { method: "DELETE" });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: "删除失败" }));
+      throw new Error(err.detail ?? "删除失败");
+    }
+  }, [queryParams]);
 
   const handleCreate = useCallback(async () => {
     if (!formTitle.trim() || !formContent.trim()) return;
