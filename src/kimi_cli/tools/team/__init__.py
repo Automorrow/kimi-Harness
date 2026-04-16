@@ -90,6 +90,57 @@ class CreateTeam(CallableTool2[CreateTeamParams]):
         )
 
 
+class OrchestrateTaskParams(BaseModel):
+    team_name: str = Field(description="Name of the team.")
+    task: str = Field(description="Overall task description for the multi-phase orchestration.")
+
+
+class OrchestrateTask(CallableTool2[OrchestrateTaskParams]):
+    name: str = "OrchestrateTask"
+    description: str = (
+        "Run a multi-phase orchestration on a team: research → plan → implement → review. "
+        "Each phase uses the results of previous phases. The team should have members with "
+        "explorer, worker, and reviewer roles for best results."
+    )
+    params: type[OrchestrateTaskParams] = OrchestrateTaskParams
+
+    def __init__(self, runtime: Runtime):
+        super().__init__()
+        self._runtime = runtime
+
+    @override
+    async def __call__(self, params: OrchestrateTaskParams) -> ToolReturnValue:
+        coordinator = self._runtime.team_coordinator
+        if coordinator is None:
+            return ToolError(
+                message="Team coordination is not available.",
+                brief="Team coordinator unavailable",
+            )
+
+        results = await coordinator.orchestrate(params.team_name, params.task)
+
+        if not results:
+            return ToolReturnValue(
+                is_error=False,
+                output="No results from orchestration.",
+                message="Orchestration completed with no results.",
+                display=[],
+            )
+
+        lines: list[str] = ["## Orchestration Results"]
+        for r in results:
+            status = "ERROR" if r.is_error else "OK"
+            lines.append(f"### [{status}] {r.agent_id} ({r.duration_ms:.0f}ms)")
+            lines.append(r.output[:500])
+
+        return ToolReturnValue(
+            is_error=False,
+            output="\n".join(lines),
+            message=f"Orchestration completed with {len(results)} result(s).",
+            display=[],
+        )
+
+
 class AddTeamMember(CallableTool2[AddTeamMemberParams]):
     name: str = "AddTeamMember"
     description: str = "Add a member to an existing team."

@@ -281,6 +281,156 @@ class TeamCoordinator:
                 message[:100],
             )
 
+    async def orchestrate(
+        self,
+        team_name: str,
+        task: str,
+        *,
+        phases: list[OrchestrationPhase] | None = None,
+    ) -> list[TaskResult]:
+        """Execute a multi-phase orchestration on a team.
+
+        Each phase runs sequentially, with the results of previous phases
+        injected into the next phase's prompt template.
+
+        Args:
+            team_name: Team name.
+            task: Overall task description.
+            phases: Custom phases. If None, uses the default four-phase
+                pipeline (research → plan → implement → review).
+
+        Returns:
+            All task results from all phases.
+        """
+        team = self._teams.get(team_name)
+        if team is None:
+            logger.error("Team not found: %s", team_name)
+            return []
+
+        if self._runtime is None:
+            logger.error("Cannot orchestrate: TeamCoordinator has no Runtime reference")
+            return []
+
+        phases = phases or _DEFAULT_PHASES
+        all_results: list[TaskResult] = []
+        previous_results_text = ""
+
+        for phase in phases:
+            logger.info(
+                "Orchestration phase '%s' starting for team '%s'",
+                phase.name,
+                team_name,
+            )
+
+            # Build prompt from template
+            prompt = phase.prompt_template.format(
+                task=task,
+                previous_results=previous_results_text if previous_results_text else "(none)",
+            )
+
+            # Select targets: filter by role if agent_filter is set
+            if phase.agent_filter:
+                filtered = [
+                    m for m in team.members
+                    if m.role.value == phase.agent_filter
+                    or m.agent_type == phase.agent_filter
+                ]
+                if not filtered:
+                    logger.warning(
+                        "No members match filter '%s' in phase '%s', using all members",
+                        phase.agent_filter,
+                        phase.name,
+                    )
+                    filtered = team.members
+                targets = filtered
+            else:
+                targets = team.members
+
+            if not targets:
+                logger.warning("No targets for phase '%s'", phase.name)
+                continue
+
+            # Execute using dispatch logic
+            task_id = str(uuid.uuid4())[:8]
+            phase_results: list[TaskResult] = []
+
+            async def _execute_phase(member: TeamMember, p: str = prompt) -> TaskResult:
+                t0 = time.monotonic()
+                try:
+                    from kosong.tooling import ToolError, ToolOk
+                    from kimi_cli.subagents.runner import (
+                        ForegroundRunRequest,
+                        ForegroundSubagentRunner,
+                    )
+
+                    runner = ForegroundSubagentRunner(self._runtime)
+                    req = ForegroundRunRequest(
+                        description=f"[Orchestration:{team_name}:{phase.name}] {task[:60]}",
+                        prompt=p,
+                        requested_type=member.agent_type,
+                        model=None,
+                        resume=None,
+                    )
+                    result = await runner.run(req)
+
+                    if isinstance(result, ToolOk):
+                        output = result.output if isinstance(result.output, str) else str(result.output)
+                        return TaskResult(
+                            agent_id=member.agent_id,
+                            task_id=task_id,
+                            output=output,
+                            is_error=False,
+                            duration_ms=(time.monotonic() - t0) * 1000,
+                        )
+                    else:
+                        return TaskResult(
+                            agent_id=member.agent_id,
+                            task_id=task_id,
+                            output=result.message if isinstance(result, ToolError) else str(result),
+                            is_error=True,
+                            duration_ms=(time.monotonic() - t0) * 1000,
+                        )
+                except Exception as e:
+                    logger.error(
+                        "Phase '%s' failed on %s: %s",
+                        phase.name,
+                        member.agent_type,
+                        e,
+                    )
+                    return TaskResult(
+                        agent_id=member.agent_id,
+                        task_id=task_id,
+                        output=str(e),
+                        is_error=True,
+                        duration_ms=(time.monotonic() - t0) * 1000,
+                    )
+
+            # Parallel execution for broadcast, serial for others
+            if phase.strategy == "broadcast" and len(targets) > 1:
+                phase_results = list(
+                    await asyncio.gather(*[_execute_phase(m) for m in targets])
+                )
+            else:
+                for member in targets:
+                    phase_results.append(await _execute_phase(member))
+
+            all_results.extend(phase_results)
+
+            # Format results for next phase
+            parts = [f"=== Phase: {phase.name} ==="]
+            for r in phase_results:
+                status = "ERROR" if r.is_error else "OK"
+                parts.append(f"[{status}] {r.agent_id}:\n{r.output}")
+            previous_results_text = "\n\n".join(parts)
+
+            logger.info(
+                "Orchestration phase '%s' completed with %d results",
+                phase.name,
+                len(phase_results),
+            )
+
+        return all_results
+
     def _select_targets(
         self,
         team: Team,
@@ -303,3 +453,73 @@ class TeamCoordinator:
                 return [member]
             case _:
                 return team.members
+
+
+# ---------------------------------------------------------------------------
+# Multi-phase orchestration
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class OrchestrationPhase:
+    """A single phase in a multi-phase orchestration.
+
+    Attributes:
+        name: Phase name (e.g. "research", "plan", "implement", "review").
+        prompt_template: Prompt template with ``{task}`` and ``{previous_results}`` placeholders.
+        strategy: Dispatch strategy (leader/broadcast/round_robin).
+        agent_filter: If set, only dispatch to members with this role.
+    """
+
+    name: str
+    prompt_template: str
+    strategy: str = "leader"
+    agent_filter: str | None = None
+
+
+# Default orchestration phases (research → plan → implement → review)
+_DEFAULT_PHASES: list[OrchestrationPhase] = [
+    OrchestrationPhase(
+        name="research",
+        prompt_template=(
+            "Research the following task thoroughly. "
+            "Find all relevant files, understand the codebase structure, "
+            "and identify what needs to change.\n\n"
+            "Task: {task}"
+        ),
+        strategy="broadcast",
+        agent_filter="explorer",
+    ),
+    OrchestrationPhase(
+        name="plan",
+        prompt_template=(
+            "Based on the research findings below, create a detailed "
+            "implementation plan for the task.\n\n"
+            "Task: {task}\n\n"
+            "Research findings:\n{previous_results}"
+        ),
+        strategy="leader",
+    ),
+    OrchestrationPhase(
+        name="implement",
+        prompt_template=(
+            "Implement the following task based on the plan below. "
+            "Write code, make changes, and run tests to verify.\n\n"
+            "Task: {task}\n\n"
+            "Plan:\n{previous_results}"
+        ),
+        strategy="broadcast",
+        agent_filter="worker",
+    ),
+    OrchestrationPhase(
+        name="review",
+        prompt_template=(
+            "Review the implementation below for correctness, "
+            "edge cases, and potential issues. Output PASS or FAIL.\n\n"
+            "Task: {task}\n\n"
+            "Implementation:\n{previous_results}"
+        ),
+        strategy="leader",
+        agent_filter="reviewer",
+    ),
+]

@@ -24,6 +24,7 @@ agent:
     - "kimi_cli.tools.team:DispatchTask"
     - "kimi_cli.tools.team:BroadcastMessage"
     - "kimi_cli.tools.team:ListTeams"
+    - "kimi_cli.tools.team:OrchestrateTask"
     - "kimi_cli.tools.memory:SaveMemory"
     - "kimi_cli.tools.memory:SearchMemory"
     - "kimi_cli.tools.mcp_resources:ListMcpResources"
@@ -48,3 +49,9 @@ agent:
     plan:
       path: ./plan.yaml
       description: "Read-only implementation planning and architecture design."
+    worker:
+      path: ./worker.yaml
+      description: "Implementation-focused agent for writing code, fixing bugs, and running tests."
+    reviewer:
+      path: ./reviewer.yaml
+      description: "Read-only verification agent for code review and adversarial testing."

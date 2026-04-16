@@ -283,3 +283,127 @@ async def import_context(soul: KimiSoul, args: str):
                 "The content is now part of your session context."
             )
         )
+
+
+# ---------------------------------------------------------------------------
+# /memory — Harness memory management
+# ---------------------------------------------------------------------------
+
+
+def _require_memory_manager(soul: KimiSoul):
+    """Return the MemoryManager if Harness memory is enabled, else send error and return None."""
+    mm = soul.runtime.memory_manager
+    if mm is None:
+        wire_send(
+            TextPart(
+                text="Memory is not enabled. Include 'harness' in your message to enable it, "
+                "then use /memory commands."
+            )
+        )
+        return None
+    return mm
+
+
+@registry.command
+async def memory(soul: KimiSoul, args: str):
+    """Manage persistent memory. Subcommands: list, show, add, remove"""
+    parts = args.strip().split(maxsplit=1)
+    subcmd = parts[0] if parts else "list"
+    sub_args = parts[1].strip() if len(parts) > 1 else ""
+
+    if subcmd == "list":
+        await _memory_list(soul)
+    elif subcmd == "show":
+        await _memory_show(soul, sub_args)
+    elif subcmd == "add":
+        await _memory_add(soul, sub_args)
+    elif subcmd == "remove":
+        await _memory_remove(soul, sub_args)
+    else:
+        wire_send(
+            TextPart(
+                text=f"Unknown /memory subcommand: '{subcmd}'. "
+                "Available: list, show, add, remove"
+            )
+        )
+
+
+async def _memory_list(soul: KimiSoul) -> None:
+    """List all memory entries."""
+    mm = _require_memory_manager(soul)
+    if mm is None:
+        return
+
+    entries = mm.list_entries()
+    if not entries:
+        wire_send(TextPart(text="No memories found. Use /memory add <title> :: <content> to create one."))
+        return
+
+    lines = [f"Found {len(entries)} memories:"]
+    for e in entries:
+        preview = e.content[:80].replace("\n", " ")
+        lines.append(f"  - **{e.title}** ({e.name}): {preview}...")
+    wire_send(TextPart(text="\n".join(lines)))
+
+
+async def _memory_show(soul: KimiSoul, name: str) -> None:
+    """Show the full content of a memory entry."""
+    if not name:
+        wire_send(TextPart(text="Usage: /memory show <name>"))
+        return
+
+    mm = _require_memory_manager(soul)
+    if mm is None:
+        return
+
+    for e in mm.list_entries():
+        if e.name == name or e.title.lower() == name.lower():
+            wire_send(TextPart(text=f"## {e.title}\n\n{e.content}"))
+            return
+
+    wire_send(TextPart(text=f"Memory '{name}' not found. Use /memory list to see all memories."))
+
+
+async def _memory_add(soul: KimiSoul, args: str) -> None:
+    """Add a new memory entry. Format: /memory add <title> :: <content>"""
+    if "::" not in args:
+        wire_send(TextPart(text="Usage: /memory add <title> :: <content>\nExample: /memory add Project uses pnpm :: This project uses pnpm instead of npm"))
+        return
+
+    title, _, content = args.partition("::")
+    title = title.strip()
+    content = content.strip()
+
+    if not title:
+        wire_send(TextPart(text="Title cannot be empty. Usage: /memory add <title> :: <content>"))
+        return
+    if not content:
+        wire_send(TextPart(text="Content cannot be empty. Usage: /memory add <title> :: <content>"))
+        return
+
+    mm = _require_memory_manager(soul)
+    if mm is None:
+        return
+
+    try:
+        path = mm.add_entry(title=title, content=content)
+        wire_send(TextPart(text=f"Memory saved: '{title}' -> {path.name}"))
+    except Exception as exc:
+        wire_send(TextPart(text=f"Failed to save memory: {exc}"))
+
+
+async def _memory_remove(soul: KimiSoul, name: str) -> None:
+    """Remove a memory entry."""
+    if not name:
+        wire_send(TextPart(text="Usage: /memory remove <name>"))
+        return
+
+    mm = _require_memory_manager(soul)
+    if mm is None:
+        return
+
+    deleted = mm.remove_entry(name)
+    if deleted:
+        wire_send(TextPart(text=f"Memory '{name}' deleted."))
+    else:
+        wire_send(TextPart(text=f"Memory '{name}' not found. Use /memory list to see all memories."))
