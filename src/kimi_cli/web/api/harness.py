@@ -262,9 +262,11 @@ async def switch_permission_mode(request: PermissionModeRequest) -> PermissionMo
 
 @router.get("/memory", summary="List memory entries")
 async def list_memory_entries(
-    work_dir: str = Query(description="Project working directory path"),
+    work_dir: str = Query(default="", description="Project working directory path"),
 ) -> MemoryListResponse:
     """列出项目级记忆条目。"""
+    if not work_dir:
+        return MemoryListResponse(memories=[])
     resolved = _validate_work_dir(work_dir)
 
     try:
@@ -294,9 +296,11 @@ async def list_memory_entries(
 @router.post("/memory", summary="Add a memory entry")
 async def add_memory_entry(
     request: AddMemoryRequest,
-    work_dir: str = Query(description="Project working directory path"),
+    work_dir: str = Query(default="", description="Project working directory path"),
 ) -> AddMemoryResponse:
     """添加一条记忆条目。"""
+    if not work_dir:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="work_dir is required")
     resolved = _validate_work_dir(work_dir)
 
     try:
@@ -324,9 +328,11 @@ async def add_memory_entry(
 @router.delete("/memory/{name}", summary="Delete a memory entry")
 async def delete_memory_entry(
     name: str,
-    work_dir: str = Query(description="Project working directory path"),
+    work_dir: str = Query(default="", description="Project working directory path"),
 ) -> DeleteMemoryResponse:
     """删除一条记忆条目。"""
+    if not work_dir:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="work_dir is required")
     resolved = _validate_work_dir(work_dir)
 
     try:
@@ -354,9 +360,11 @@ async def delete_memory_entry(
 @router.get("/memory/search", summary="Search memory entries")
 async def search_memory_entries(
     q: str = Query(description="Search query string"),
-    work_dir: str = Query(description="Project working directory path"),
+    work_dir: str = Query(default="", description="Project working directory path"),
 ) -> MemoryListResponse:
     """搜索记忆条目（在标题和内容中进行子串匹配）。"""
+    if not work_dir:
+        return MemoryListResponse(memories=[])
     resolved = _validate_work_dir(work_dir)
 
     try:
