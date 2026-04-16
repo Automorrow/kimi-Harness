@@ -31,7 +31,8 @@ type Memory = {
 };
 
 type MemoryListResponse = {
-  memories: Memory[];
+  entries: Memory[];
+  count: number;
 };
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
@@ -119,7 +120,7 @@ export function MemoryPanel() {
     [deleteMemory, mutate],
   );
 
-  const memories = searchQuery.trim() ? searchData?.memories : data?.memories;
+  const memories = searchQuery.trim() ? searchData?.entries : data?.entries;
   const displayMemories = memories ?? [];
 
   return (

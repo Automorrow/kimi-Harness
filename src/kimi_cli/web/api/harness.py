@@ -266,7 +266,7 @@ async def list_memory_entries(
 ) -> MemoryListResponse:
     """列出项目级记忆条目。"""
     if not work_dir:
-        return MemoryListResponse(memories=[])
+        return MemoryListResponse(entries=[], count=0)
     resolved = _validate_work_dir(work_dir)
 
     try:
@@ -364,7 +364,7 @@ async def search_memory_entries(
 ) -> MemoryListResponse:
     """搜索记忆条目（在标题和内容中进行子串匹配）。"""
     if not work_dir:
-        return MemoryListResponse(memories=[])
+        return MemoryListResponse(entries=[], count=0)
     resolved = _validate_work_dir(work_dir)
 
     try:
