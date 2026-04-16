@@ -1,5 +1,5 @@
 [project]
-name = "kimi-cli"
+name = "kimi-harness"
 version = "1.35.0"
 description = "Kimi Code CLI is your next CLI agent."
 readme = "README.md"
@@ -69,10 +69,13 @@ members = [
 kosong = { workspace = true }
 pykaos = { workspace = true }
 kimi-cli = { workspace = true }
+kimi-harness = { workspace = true }
 
 [project.scripts]
 kimi = "kimi_cli.__main__:main"
 kimi-cli = "kimi_cli.__main__:main"
+kh = "kimi_cli.__main__:main"
+kimi-harness = "kimi_cli.__main__:main"
 
 [tool.ruff]
 line-length = 100
