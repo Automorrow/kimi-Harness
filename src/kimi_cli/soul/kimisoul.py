@@ -594,6 +594,16 @@ class KimiSoul:
         except Exception:
             logger.debug("Failed to enable SandboxExecutor via magic word", exc_info=True)
 
+        # 4. 启用 TeamCoordinator
+        try:
+            from kimi_cli.harness.coordinator.team import TeamCoordinator
+
+            if runtime.team_coordinator is None:
+                runtime.team_coordinator = TeamCoordinator()
+                logger.info("Harness magic word: TeamCoordinator enabled")
+        except Exception:
+            logger.debug("Failed to enable TeamCoordinator via magic word", exc_info=True)
+
     @property
     def available_slash_commands(self) -> list[SlashCommand[Any]]:
         return self._slash_commands

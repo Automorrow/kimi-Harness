@@ -61,6 +61,9 @@ jobs:
           UV_PYTHON: ${{ steps.setup-python.outputs.python-path }}
         run: make check-kimi-cli
 
+      - name: Check fork customizations
+        run: python scripts/check_fork_customizations.py
+
   check-web:
     runs-on: ubuntu-latest
     steps:
