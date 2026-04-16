@@ -1,6 +1,6 @@
 import { useCallback } from "react";
 import useSWR from "swr";
-import { Shield, Brain, Box, Users, Wrench } from "lucide-react";
+import { Brain, Users } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
@@ -17,11 +17,8 @@ type HarnessStatus = {
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 const PANEL_ITEMS = [
-  { key: "permissions", label: "权限面板", icon: Shield },
   { key: "memory", label: "记忆面板", icon: Brain },
-  { key: "sandbox", label: "沙箱面板", icon: Box },
   { key: "teams", label: "团队面板", icon: Users },
-  { key: "tools", label: "工具面板", icon: Wrench },
 ] as const;
 
 type HarnessStatusBadgeProps = {

@@ -62,6 +62,7 @@ from kimi_cli.soul.dynamic_injection import (
 )
 from kimi_cli.soul.dynamic_injections.plan_mode import PlanModeInjectionProvider
 from kimi_cli.soul.dynamic_injections.yolo_mode import YoloModeInjectionProvider
+from kimi_cli.soul.dynamic_injections.memory import MemoryInjectionProvider
 from kimi_cli.soul.message import check_message, system, system_reminder, tool_result_to_message
 from kimi_cli.soul.slash import registry as soul_slash_registry
 from kimi_cli.soul.toolset import KimiToolset
@@ -150,9 +151,6 @@ class KimiSoul:
         self._steer_queue: asyncio.Queue[str | list[ContentPart]] = asyncio.Queue()
         self._plan_mode: bool = self._runtime.session.state.plan_mode
         # 确保 _plan_mode 与 PermissionChecker 严格等价：
-        # 如果 PermissionChecker.mode == PLAN 但 _plan_mode == False（例如
-        # 通过 agent.yaml 配置），则自动同步。反之亦然。
-        self._ensure_plan_mode_consistency()
         self._plan_session_id: str | None = self._runtime.session.state.plan_session_id
         # Pre-warm slug cache so the persisted slug survives process restarts
         if self._plan_session_id is not None and self._runtime.session.state.plan_slug is not None:
@@ -165,6 +163,7 @@ class KimiSoul:
         self._injection_providers: list[DynamicInjectionProvider] = [
             PlanModeInjectionProvider(),
             YoloModeInjectionProvider(),
+            MemoryInjectionProvider(),
         ]
         self._hook_engine: HookEngine = HookEngine()
         self._stop_hook_active: bool = False
@@ -288,59 +287,6 @@ class KimiSoul:
             self._runtime.session.state.plan_slug = slug
             self._runtime.session.save_state()
 
-    def _sync_permission_checker_plan_mode(self, plan_mode_enabled: bool) -> None:
-        """同步 PermissionChecker 的 plan mode 状态。
-
-        当 KimiSoul 的 plan mode 状态变化时，需要同步更新
-        PermissionChecker 的 mode，否则两者状态不一致会导致
-        ExitPlanMode 后写操作仍被阻止。
-        """
-        try:
-            from kimi_cli.harness.permissions.checker import PermissionMode
-
-            checker = self._runtime.approval._permission_checker
-            if checker is None:
-                return
-            if plan_mode_enabled:
-                if checker.mode != PermissionMode.PLAN:
-                    checker.set_mode(PermissionMode.PLAN)
-            else:
-                if checker.mode == PermissionMode.PLAN:
-                    checker.set_mode(PermissionMode.DEFAULT)
-        except Exception:
-            logger.debug("Failed to sync PermissionChecker plan mode", exc_info=True)
-
-    def _ensure_plan_mode_consistency(self) -> None:
-        """确保 _plan_mode 与 PermissionChecker.mode 严格等价。
-
-        在 __init__ 中调用，处理以下不一致场景：
-        - agent.yaml 设置 permission_mode=plan，但 session.state.plan_mode=False
-        - 恢复会话时 PermissionChecker 被 _apply_harness_capabilities 覆盖为 PLAN
-        """
-        try:
-            from kimi_cli.harness.permissions.checker import PermissionMode
-
-            checker = self._runtime.approval._permission_checker
-            if checker is None:
-                return
-            checker_is_plan = checker.mode == PermissionMode.PLAN
-            if checker_is_plan and not self._plan_mode:
-                self._plan_mode = True
-                self._runtime.session.state.plan_mode = True
-                self._ensure_plan_session_id()
-                logger.info(
-                    "Plan mode consistency fix: PermissionChecker was PLAN but "
-                    "_plan_mode was False, synced to True"
-                )
-            elif not checker_is_plan and self._plan_mode:
-                checker.set_mode(PermissionMode.PLAN)
-                logger.info(
-                    "Plan mode consistency fix: _plan_mode was True but "
-                    "PermissionChecker was not PLAN, synced to PLAN"
-                )
-        except Exception:
-            logger.debug("Failed to ensure plan mode consistency", exc_info=True)
-
     def _set_plan_mode(self, enabled: bool, *, source: Literal["manual", "tool"]) -> bool:
         """Update plan mode state for either manual or tool-driven toggles."""
         if enabled == self._plan_mode:
@@ -349,15 +295,11 @@ class KimiSoul:
         if enabled:
             self._ensure_plan_session_id()
             self._pending_plan_activation_injection = source == "manual"
-            # 同步 PermissionChecker：进入 plan mode 时切换为 PLAN
-            self._sync_permission_checker_plan_mode(True)
         else:
             self._pending_plan_activation_injection = False
             self._plan_session_id = None
             self._runtime.session.state.plan_session_id = None
             self._runtime.session.state.plan_slug = None
-            # 同步 PermissionChecker：退出 plan mode 时将 PLAN 切换为 DEFAULT
-            self._sync_permission_checker_plan_mode(False)
         # Persist plan mode to session state so it survives process restarts
         self._runtime.session.state.plan_mode = self._plan_mode
         self._runtime.session.save_state()
@@ -523,9 +465,7 @@ class KimiSoul:
     def _apply_harness_capabilities(
         self,
         *,
-        permission_mode: str,
         memory: str,
-        isolation: str,
     ) -> None:
         """动态启用 Harness 能力（由魔法词触发）。
 
@@ -535,36 +475,7 @@ class KimiSoul:
         """
         runtime = self._runtime
 
-        # 1. 启用 PermissionChecker
-        try:
-            from kimi_cli.harness.permissions.checker import (
-                PermissionChecker,
-                PermissionMode,
-                create_default_settings,
-            )
-
-            settings = create_default_settings()
-            with contextlib.suppress(ValueError):
-                settings.mode = PermissionMode(permission_mode)
-            if not runtime.approval.has_permission_checker:
-                runtime.approval.set_permission_checker(PermissionChecker(settings))
-                logger.info(
-                    "Harness magic word: PermissionChecker enabled, mode={mode}",
-                    mode=settings.mode,
-                )
-            else:
-                # 已存在时更新 mode，确保魔法词的 permission_mode 生效
-                checker = runtime.approval._permission_checker
-                if checker is not None and checker.mode != settings.mode:
-                    checker.set_mode(settings.mode)
-                    logger.info(
-                        "Harness magic word: PermissionChecker mode updated to {mode}",
-                        mode=settings.mode,
-                    )
-        except Exception:
-            logger.debug("Failed to enable PermissionChecker via magic word", exc_info=True)
-
-        # 2. 启用 MemoryManager
+        # 1. 启用 MemoryManager
         try:
             from kimi_cli.harness.memory.manager import MemoryManager
 
@@ -575,26 +486,7 @@ class KimiSoul:
         except Exception:
             logger.debug("Failed to enable MemoryManager via magic word", exc_info=True)
 
-        # 3. 启用 SandboxExecutor
-        try:
-            from kimi_cli.harness.sandbox.executor import SandboxMode, create_sandbox_executor
-
-            _ISOLATION_TO_SANDBOX: dict[str, SandboxMode] = {
-                "none": SandboxMode.NONE,
-                "command": SandboxMode.COMMAND,
-                "docker": SandboxMode.DOCKER,
-                # 向后兼容别名
-                "worktree": SandboxMode.COMMAND,
-                "remote": SandboxMode.DOCKER,
-            }
-            mode = _ISOLATION_TO_SANDBOX.get(isolation, SandboxMode.COMMAND)
-            if runtime.sandbox_executor is None:
-                runtime.sandbox_executor = create_sandbox_executor(mode)
-            logger.info("Harness magic word: SandboxExecutor enabled, mode={mode}", mode=mode)
-        except Exception:
-            logger.debug("Failed to enable SandboxExecutor via magic word", exc_info=True)
-
-        # 4. 启用 TeamCoordinator
+        # 2. 启用 TeamCoordinator
         try:
             from kimi_cli.harness.coordinator.team import TeamCoordinator
 
@@ -639,14 +531,8 @@ class KimiSoul:
 
         if _magic_detected:
             self._apply_harness_capabilities(
-                permission_mode="plan",
                 memory="global",
-                isolation="command",
             )
-            # 魔法词 permission_mode=plan 时同步激活 KimiSoul 的 plan mode，
-            # 确保 UI 显示 plan mode 指示器且用户可以通过 ExitPlanMode 退出
-            if not self._plan_mode:
-                self._set_plan_mode(True, source="manual")
 
         if get_current_approval_source_or_none() is None:
             approval_source_token = set_current_approval_source(

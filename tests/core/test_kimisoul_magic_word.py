@@ -61,7 +61,7 @@ class TestStringInput:
     """Magic word detection with str input to soul.run()."""
 
     @pytest.mark.asyncio
-    async def test_harness_activates_plan_mode(
+    async def test_harness_enables_memory(
         self,
         runtime: Runtime,
         tmp_path: Path,
@@ -70,18 +70,18 @@ class TestStringInput:
         soul = _make_soul(runtime, tmp_path)
         sent = _setup_soul_run(soul, monkeypatch)
 
-        assert soul._plan_mode is False
+        assert runtime.memory_manager is None
 
         await soul.run("harness fix this")
 
-        assert soul._plan_mode is True
+        assert runtime.memory_manager is not None
         # TurnBegin should contain cleaned input (without "harness")
         turn_begins = [m for m in sent if isinstance(m, TurnBegin)]
         assert len(turn_begins) == 1
         assert turn_begins[0].user_input == "fix this"
 
     @pytest.mark.asyncio
-    async def test_hns_activates_plan_mode(
+    async def test_hns_enables_memory(
         self,
         runtime: Runtime,
         tmp_path: Path,
@@ -92,13 +92,13 @@ class TestStringInput:
 
         await soul.run("hns do something")
 
-        assert soul._plan_mode is True
+        assert runtime.memory_manager is not None
         turn_begins = [m for m in sent if isinstance(m, TurnBegin)]
         assert len(turn_begins) == 1
         assert turn_begins[0].user_input == "do something"
 
     @pytest.mark.asyncio
-    async def test_no_magic_word_no_plan_mode(
+    async def test_no_magic_word_no_memory(
         self,
         runtime: Runtime,
         tmp_path: Path,
@@ -109,24 +109,11 @@ class TestStringInput:
 
         await soul.run("fix this bug")
 
-        assert soul._plan_mode is False
+        assert runtime.memory_manager is None
         turn_begins = [m for m in sent if isinstance(m, TurnBegin)]
         assert len(turn_begins) == 1
         assert turn_begins[0].user_input == "fix this bug"
 
-    @pytest.mark.asyncio
-    async def test_permission_checker_enabled(
-        self,
-        runtime: Runtime,
-        tmp_path: Path,
-        monkeypatch: pytest.MonkeyPatch,
-    ) -> None:
-        soul = _make_soul(runtime, tmp_path)
-        _setup_soul_run(soul, monkeypatch)
-
-        await soul.run("harness fix this")
-
-        assert runtime.approval.has_permission_checker is True
 
 
 class TestContentPartInput:
@@ -148,7 +135,6 @@ class TestContentPartInput:
         ]
         await soul.run(user_input)
 
-        assert soul._plan_mode is True
         turn_begins = [m for m in sent if isinstance(m, TurnBegin)]
         assert len(turn_begins) == 1
         # The TextPart should be cleaned
@@ -169,14 +155,14 @@ class TestContentPartInput:
         ]
         await soul.run(user_input)
 
-        assert soul._plan_mode is False
+        assert runtime.memory_manager is None
 
 
 class TestIdempotency:
-    """Magic word should not re-inject when already in plan mode."""
+    """Magic word should not re-inject when already enabled."""
 
     @pytest.mark.asyncio
-    async def test_already_in_plan_mode_no_double_set(
+    async def test_already_enabled_no_double_init(
         self,
         runtime: Runtime,
         tmp_path: Path,
@@ -185,20 +171,12 @@ class TestIdempotency:
         soul = _make_soul(runtime, tmp_path)
         _setup_soul_run(soul, monkeypatch)
 
-        # Pre-set plan mode
-        soul._plan_mode = True
-        original_set_plan_mode = soul._set_plan_mode
-        call_count = 0
-
-        def tracked_set_plan_mode(enabled: bool, *, source: str) -> bool:
-            nonlocal call_count
-            call_count += 1
-            return original_set_plan_mode(enabled, source=source)
-
-        monkeypatch.setattr(soul, "_set_plan_mode", tracked_set_plan_mode)
+        # Pre-enable memory manager
+        from kimi_cli.harness.memory.manager import MemoryManager
+        mm = MemoryManager(work_dir=str(tmp_path))
+        runtime.memory_manager = mm
 
         await soul.run("harness fix this")
 
-        # _set_plan_mode should NOT be called again since already in plan mode
-        assert call_count == 0
-        assert soul._plan_mode is True
+        # memory_manager should still be the same instance (idempotent)
+        assert runtime.memory_manager is mm

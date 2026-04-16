@@ -27,19 +27,6 @@ class HarnessStatusResponse(BaseModel):
     message: str = Field(description="状态说明")
 
 
-class PermissionModeResponse(BaseModel):
-    """权限模式响应。"""
-
-    mode: str = Field(description="权限模式")
-    message: str = Field(default="", description="附加说明")
-
-
-class PermissionModeRequest(BaseModel):
-    """切换权限模式请求。"""
-
-    mode: str = Field(description="目标权限模式")
-
-
 class MemoryEntryResponse(BaseModel):
     """单条记忆条目响应。"""
 
@@ -79,13 +66,6 @@ class DeleteMemoryResponse(BaseModel):
     message: str = Field(default="", description="附加说明")
 
 
-class SandboxModeResponse(BaseModel):
-    """沙箱模式响应。"""
-
-    mode: str = Field(description="沙箱模式")
-    message: str = Field(default="", description="附加说明")
-
-
 class TeamInfo(BaseModel):
     """团队信息。"""
 
@@ -100,35 +80,15 @@ class TeamListResponse(BaseModel):
     message: str = Field(default="", description="附加说明")
 
 
-class ToolInfo(BaseModel):
-    """工具信息。"""
-
-    name: str = Field(description="工具名称")
-    description: str = Field(default="", description="工具描述")
-    read_only: bool = Field(default=False, description="是否只读")
-
-
-class ToolListResponse(BaseModel):
-    """工具列表响应。"""
-
-    tools: list[ToolInfo] = Field(description="工具列表")
-    count: int = Field(description="工具数量")
-
-
 # ---------------------------------------------------------------------------
 # 路径遍历保护
 # ---------------------------------------------------------------------------
 
-# 允许的根路径前缀（启动时可扩展）
 _ALLOWED_ROOTS: list[Path] | None = None
 
 
 def _get_allowed_roots() -> list[Path]:
-    """获取允许的根路径列表。
-
-    优先使用环境变量 KIMI_WEB_ALLOWED_WORK_DIRS（逗号分隔），
-    否则使用当前工作目录和用户主目录。
-    """
+    """获取允许的根路径列表。"""
     global _ALLOWED_ROOTS
     if _ALLOWED_ROOTS is not None:
         return _ALLOWED_ROOTS
@@ -137,25 +97,12 @@ def _get_allowed_roots() -> list[Path]:
     if env_dirs.strip():
         _ALLOWED_ROOTS = [Path(d).resolve() for d in env_dirs.split(",") if d.strip()]
     else:
-        _ALLOWED_ROOTS = [
-            Path.cwd(),
-            Path.home(),
-        ]
+        _ALLOWED_ROOTS = [Path.cwd(), Path.home()]
     return _ALLOWED_ROOTS
 
 
 def _validate_work_dir(work_dir: str) -> Path:
-    """验证 work_dir 是否在允许的范围内，防止路径遍历攻击。
-
-    Args:
-        work_dir: 用户传入的工作目录路径。
-
-    Returns:
-        解析后的绝对路径。
-
-    Raises:
-        HTTPException: 路径不在允许范围内或不存在。
-    """
+    """验证 work_dir 是否在允许的范围内，防止路径遍历攻击。"""
     try:
         resolved = Path(work_dir).resolve()
     except (OSError, ValueError) as exc:
@@ -179,79 +126,20 @@ def _validate_work_dir(work_dir: str) -> Path:
 
 
 # ---------------------------------------------------------------------------
-# 静态工具列表
-# ---------------------------------------------------------------------------
-
-_BUILTIN_TOOLS: list[ToolInfo] = [
-    ToolInfo(name="read_file", description="Read file contents", read_only=True),
-    ToolInfo(name="write_file", description="Write file contents", read_only=False),
-    ToolInfo(name="glob", description="Find files by pattern", read_only=True),
-    ToolInfo(name="grep", description="Search file contents", read_only=True),
-    ToolInfo(name="bash", description="Execute shell commands", read_only=False),
-    ToolInfo(name="web_search", description="Search the web", read_only=True),
-    ToolInfo(name="web_fetch", description="Fetch URL content", read_only=True),
-    ToolInfo(name="lsp", description="Language Server Protocol integration", read_only=True),
-    ToolInfo(name="brief", description="Show brief context", read_only=True),
-    ToolInfo(name="ask_user_question", description="Ask user a question", read_only=True),
-    ToolInfo(name="tool_search", description="Search available tools", read_only=True),
-    ToolInfo(name="list_mcp_resources", description="List MCP resources", read_only=True),
-    ToolInfo(name="read_mcp_resource", description="Read MCP resource", read_only=True),
-]
-
-
-# ---------------------------------------------------------------------------
 # 端点：整体状态
 # ---------------------------------------------------------------------------
 
 
 @router.get("/status", summary="Get Harness overall status")
 async def get_harness_status() -> HarnessStatusResponse:
-    """返回 Harness 整体状态，包括各子能力的可用性。"""
+    """返回 Harness 整体状态。"""
     return HarnessStatusResponse(
         harness_enabled=True,
         capabilities={
             "memory": True,
-            "permissions": False,
-            "sandbox": False,
             "teams": False,
-            "tools": True,
         },
-        message=(
-            "Harness module is loaded. Memory and tools are available; "
-            "permissions, sandbox, and teams require a live runtime session."
-        ),
-    )
-
-
-# ---------------------------------------------------------------------------
-# 端点：权限
-# ---------------------------------------------------------------------------
-
-
-@router.get("/permissions", summary="Get permission mode")
-async def get_permission_mode() -> PermissionModeResponse:
-    """获取当前权限模式。
-
-    由于无法直接访问 runtime，返回 not_available 状态。
-    """
-    return PermissionModeResponse(
-        mode="not_available",
-        message="Permission mode is not accessible without a live runtime session.",
-    )
-
-
-@router.patch("/permissions", summary="Switch permission mode")
-async def switch_permission_mode(request: PermissionModeRequest) -> PermissionModeResponse:
-    """切换权限模式。
-
-    由于无法直接访问 runtime，返回 501 Not Implemented。
-    """
-    raise HTTPException(
-        status_code=status.HTTP_501_NOT_IMPLEMENTED,
-        detail=(
-            "Switching permission mode requires a live runtime session. "
-            f"Requested mode: {request.mode}"
-        ),
+        message="Harness module loaded. Memory is available; teams require a live runtime session.",
     )
 
 
@@ -305,7 +193,6 @@ async def add_memory_entry(
 
     try:
         manager = MemoryManager(resolved)
-        # 如果有 tags，在内容前面附加标签信息
         content = request.content
         if request.tags:
             tags_line = ", ".join(request.tags)
@@ -398,48 +285,14 @@ async def search_memory_entries(
 
 
 # ---------------------------------------------------------------------------
-# 端点：沙箱
-# ---------------------------------------------------------------------------
-
-
-@router.get("/sandbox", summary="Get sandbox mode")
-async def get_sandbox_mode() -> SandboxModeResponse:
-    """获取当前沙箱模式。
-
-    由于无法直接访问 runtime，返回 not_available 状态。
-    """
-    return SandboxModeResponse(
-        mode="not_available",
-        message="Sandbox mode is not accessible without a live runtime session.",
-    )
-
-
-# ---------------------------------------------------------------------------
 # 端点：团队
 # ---------------------------------------------------------------------------
 
 
 @router.get("/teams", summary="List teams")
 async def list_teams() -> TeamListResponse:
-    """列出 Agent 团队。
-
-    由于无法直接访问 runtime，返回 not_available 状态。
-    """
+    """列出 Agent 团队。"""
     return TeamListResponse(
         teams=[],
         message="Teams are not accessible without a live runtime session.",
-    )
-
-
-# ---------------------------------------------------------------------------
-# 端点：工具
-# ---------------------------------------------------------------------------
-
-
-@router.get("/tools", summary="List tools")
-async def list_tools() -> ToolListResponse:
-    """列出内置工具列表。"""
-    return ToolListResponse(
-        tools=_BUILTIN_TOOLS,
-        count=len(_BUILTIN_TOOLS),
     )

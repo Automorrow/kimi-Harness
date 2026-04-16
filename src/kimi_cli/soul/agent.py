@@ -210,7 +210,6 @@ class Runtime:
     """HookEngine instance, set by KimiCLI after soul creation."""
     # Harness fields (set by _apply_harness_capabilities on magic word detection)
     memory_manager: Any = None
-    sandbox_executor: Any = None
     team_coordinator: Any = None
 
     def __post_init__(self) -> None:
@@ -382,7 +381,6 @@ class Runtime:
             role="subagent",
             # Share harness capabilities with subagents
             memory_manager=self.memory_manager,
-            sandbox_executor=self.sandbox_executor,
             team_coordinator=self.team_coordinator,
         )
 

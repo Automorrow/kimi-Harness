@@ -24,6 +24,8 @@ agent:
     - "kimi_cli.tools.team:DispatchTask"
     - "kimi_cli.tools.team:BroadcastMessage"
     - "kimi_cli.tools.team:ListTeams"
+    - "kimi_cli.tools.memory:SaveMemory"
+    - "kimi_cli.tools.memory:SearchMemory"
     - "kimi_cli.tools.mcp_resources:ListMcpResources"
     - "kimi_cli.tools.mcp_resources:ReadMcpResource"
     - "kimi_cli.tools.file:ReadFile"

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import uuid
 from collections.abc import Callable
-from typing import Any, Literal
+from typing import Literal
 
 from kimi_cli.approval_runtime import (
     ApprovalCancelledError,
@@ -79,29 +79,13 @@ class Approval:
     ):
         self._state = state or ApprovalState(yolo=yolo)
         self._runtime = runtime or ApprovalRuntime()
-        self._permission_checker: Any = None
 
     def share(self) -> Approval:
         """Create a new approval queue that shares state (yolo + auto-approve)."""
-        shared = Approval(state=self._state, runtime=self._runtime)
-        shared._permission_checker = self._permission_checker
-        return shared
+        return Approval(state=self._state, runtime=self._runtime)
 
     def set_runtime(self, runtime: ApprovalRuntime) -> None:
         self._runtime = runtime
-
-    def set_permission_checker(self, checker: Any) -> None:
-        """Set the Harness PermissionChecker for programmatic permission evaluation.
-
-        When set, the checker runs before yolo/auto-approve logic.
-        DENY decisions are final and cannot be overridden by yolo.
-        CONFIRM decisions fall through to normal user confirmation.
-        """
-        self._permission_checker = checker
-
-    @property
-    def has_permission_checker(self) -> bool:
-        return self._permission_checker is not None
 
     @property
     def runtime(self) -> ApprovalRuntime:
@@ -148,46 +132,6 @@ class Approval:
             action=action,
             description=description,
         )
-
-        # --- Harness PermissionChecker 前置检查 ---
-        if self._permission_checker is not None:
-            try:
-                # 尝试从 description 中提取文件路径
-                _file_path: str | None = None
-                if description:
-                    import re
-
-                    match = re.search(
-                        r'(?:file|path)\s+`?([^`\s,;)]+)`?', description, re.IGNORECASE
-                    )
-                    if match:
-                        _file_path = match.group(1)
-
-                decision = self._permission_checker.evaluate(
-                    tool_call.function.name,
-                    is_read_only=(action in _READONLY_ACTIONS),
-                    file_path=_file_path,
-                    command=description if "command" in action.lower() else None,
-                )
-                if not decision.allowed and not decision.requires_confirmation:
-                    # DENY: 记录日志，但 yolo 模式下仍然放行（与原版 kimi-cli 一致）
-                    if not self._state.yolo:
-                        logger.info(
-                            "Permission denied by harness checker: {tool} - {reason}",
-                            tool=tool_call.function.name,
-                            reason=decision.reason,
-                        )
-                        return ApprovalResult(approved=False, feedback=decision.reason)
-                    logger.info(
-                        "Permission denied by harness checker but yolo overrides: {tool}",
-                        tool=tool_call.function.name,
-                    )
-                # ALLOW/CONFIRM: fall-through 到后续 yolo/auto-approve 流程
-            except Exception:
-                logger.debug(
-                    "Harness permission check failed, falling back to default",
-                    exc_info=True,
-                )
 
         if self._state.yolo:
             return ApprovalResult(approved=True)

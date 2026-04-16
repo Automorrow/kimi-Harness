@@ -1,19 +1,13 @@
 import { useCallback, useEffect, useState } from "react";
-import { Shield, Brain, Box, Users, Wrench, X } from "lucide-react";
+import { Brain, Users, X } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { PermissionPanel } from "./permissions/PermissionPanel";
 import { MemoryPanel } from "./memory/MemoryPanel";
-import { SandboxPanel } from "./sandbox/SandboxPanel";
 import { TeamsPanel } from "./teams/TeamsPanel";
-import { ToolsPanel } from "./tools/ToolsPanel";
 
 const TAB_CONFIG = [
-  { key: "permissions", label: "权限", icon: Shield },
   { key: "memory", label: "记忆", icon: Brain },
-  { key: "sandbox", label: "沙箱", icon: Box },
   { key: "teams", label: "团队", icon: Users },
-  { key: "tools", label: "工具", icon: Wrench },
 ] as const;
 
 type PanelKey = (typeof TAB_CONFIG)[number]["key"];
@@ -42,7 +36,7 @@ type HarnessPanelProps = {
 };
 
 export function HarnessPanel({ onClose }: HarnessPanelProps) {
-  const [activeTab, setActiveTab] = useState<PanelKey>("permissions");
+  const [activeTab, setActiveTab] = useState<PanelKey>("memory");
 
   // Sync with URL param on mount and popstate
   useEffect(() => {
@@ -106,20 +100,11 @@ export function HarnessPanel({ onClose }: HarnessPanelProps) {
         </div>
 
         <div className="flex-1 overflow-y-auto p-4">
-          <TabsContent value="permissions">
-            <PermissionPanel />
-          </TabsContent>
           <TabsContent value="memory">
             <MemoryPanel />
           </TabsContent>
-          <TabsContent value="sandbox">
-            <SandboxPanel />
-          </TabsContent>
           <TabsContent value="teams">
             <TeamsPanel />
-          </TabsContent>
-          <TabsContent value="tools">
-            <ToolsPanel />
           </TabsContent>
         </div>
       </Tabs>

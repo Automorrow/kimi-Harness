@@ -1,7 +1,7 @@
 """Harness 魔法词检测与处理.
 
 当用户输入中包含 ``harness`` 或 ``hns`` 时，
-自动启用全部 Harness 能力（permission_mode=plan, memory=global, isolation=command）。
+自动启用 Harness 能力（memory=global, teams）。
 """
 
 from __future__ import annotations
@@ -25,9 +25,7 @@ class MagicWordResult:
     """是否检测到魔法词。"""
     cleaned_input: str
     """去除魔法词后的用户输入。"""
-    permission_mode: str = "plan"
     memory: str = "global"
-    isolation: str = "command"
 
 
 def detect_magic_word(user_input: str) -> MagicWordResult:
@@ -58,7 +56,5 @@ def detect_magic_word(user_input: str) -> MagicWordResult:
     return MagicWordResult(
         detected=True,
         cleaned_input=cleaned,
-        permission_mode="plan",
         memory="global",
-        isolation="command",
     )
