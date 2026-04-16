@@ -8,8 +8,8 @@ resolution-markers = [
 
 [manifest]
 members = [
-    "kimi-cli",
     "kimi-code",
+    "kimi-harness",
     "kimi-sdk",
     "kosong",
     "pykaos",
@@ -1207,7 +1207,18 @@ wheels = [
 ]
 
 [[package]]
-name = "kimi-cli"
+name = "kimi-code"
+version = "1.35.0"
+source = { editable = "packages/kimi-code" }
+dependencies = [
+    { name = "kimi-harness" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "kimi-harness", editable = "." }]
+
+[[package]]
+name = "kimi-harness"
 version = "1.35.0"
 source = { editable = "." }
 dependencies = [
@@ -1297,17 +1308,6 @@ dev = [
     { name = "ruff", specifier = ">=0.14.10" },
     { name = "ty", specifier = ">=0.0.9" },
 ]
-
-[[package]]
-name = "kimi-code"
-version = "1.35.0"
-source = { editable = "packages/kimi-code" }
-dependencies = [
-    { name = "kimi-cli" },
-]
-
-[package.metadata]
-requires-dist = [{ name = "kimi-cli", editable = "." }]
 
 [[package]]
 name = "kimi-sdk"
