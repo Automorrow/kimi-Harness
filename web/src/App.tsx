@@ -177,6 +177,16 @@ function App() {
     updateUrlPanel(null);
   }, []);
 
+  // Listen for URL panel changes (from HarnessStatusBadge clicks)
+  useEffect(() => {
+    const handlePopState = () => {
+      const panel = getPanelFromUrl();
+      setIsHarnessPanelOpen(!!panel);
+    };
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
+
   // Sidebar state
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isSidebarAnimating, setIsSidebarAnimating] = useState(false);
