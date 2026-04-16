@@ -43,10 +43,10 @@ def _get_user_brand_skills_dir_candidates() -> tuple[KaosPath, ...]:
     """
     Get user-level brand skills directory candidates in priority order.
 
-    Brand group: ``~/.kimi/skills`` > ``~/.claude/skills`` > ``~/.codex/skills``
+    Brand group: ``~/.kimi-harness/skills`` > ``~/.claude/skills`` > ``~/.codex/skills``
     """
     return (
-        KaosPath.home() / ".kimi" / "skills",
+        KaosPath.home() / ".kimi-harness" / "skills",
         KaosPath.home() / ".claude" / "skills",
         KaosPath.home() / ".codex" / "skills",
     )

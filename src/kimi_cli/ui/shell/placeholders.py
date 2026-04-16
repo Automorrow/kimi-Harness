@@ -21,7 +21,7 @@ from kimi_cli.utils.string import random_string
 from kimi_cli.wire.types import ContentPart, ImageURLPart, TextPart
 
 _DEFAULT_PROMPT_CACHE_ROOT = get_share_dir() / "prompt-cache"
-_LEGACY_PROMPT_CACHE_ROOT = Path("/tmp/kimi")
+_LEGACY_PROMPT_CACHE_ROOT = Path("/tmp/kimi-harness")
 
 _IMAGE_PLACEHOLDER_RE = re.compile(
     r"\[(?P<type>[a-zA-Z0-9_\-]+):(?P<id>[a-zA-Z0-9_\-\.]+)"

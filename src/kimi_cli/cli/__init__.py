@@ -167,7 +167,7 @@ def kimi(
             file_okay=True,
             dir_okay=False,
             readable=True,
-            help="Config TOML/JSON file to load. Default: ~/.kimi/config.toml.",
+            help="Config TOML/JSON file to load. Default: ~/.kimi-harness/config.toml.",
         ),
     ] = None,
     model_name: Annotated[
@@ -358,7 +358,7 @@ def kimi(
 
     from kimi_cli.utils.proctitle import init_process_name
 
-    init_process_name("Kimi Code")
+    init_process_name("Kimi Harness")
 
     if ctx.invoked_subcommand is not None:
         return  # skip rest if a subcommand is invoked

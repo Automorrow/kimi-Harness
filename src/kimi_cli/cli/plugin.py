@@ -76,7 +76,7 @@ def _resolve_source(target: str) -> tuple[Path, Path | None]:
 
         clone_url, subpath, branch = _parse_git_url(target)
 
-        tmp = Path(tempfile.mkdtemp(prefix="kimi-plugin-"))
+        tmp = Path(tempfile.mkdtemp(prefix="kh-plugin-"))
         typer.echo(f"Cloning {clone_url}...")
         clone_cmd = ["git", "clone", "--depth", "1"]
         if branch:
@@ -152,7 +152,7 @@ def _resolve_source(target: str) -> tuple[Path, Path | None]:
     if p.is_file() and p.suffix == ".zip":
         import zipfile
 
-        tmp = Path(tempfile.mkdtemp(prefix="kimi-plugin-"))
+        tmp = Path(tempfile.mkdtemp(prefix="kh-plugin-"))
         typer.echo(f"Extracting {p.name}...")
         with zipfile.ZipFile(p, "r") as zf:
             # Reject zip members that escape the extraction directory

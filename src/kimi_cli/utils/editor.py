@@ -60,7 +60,7 @@ def edit_text_in_editor(text: str, configured: str = "") -> str | None:
         logger.warning("No editor found. Set $VISUAL or $EDITOR.")
         return None
 
-    fd, tmpfile = tempfile.mkstemp(suffix=".md", prefix="kimi-edit-")
+    fd, tmpfile = tempfile.mkstemp(suffix=".md", prefix="kh-edit-")
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as f:
             f.write(text)

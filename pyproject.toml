@@ -72,8 +72,6 @@ kimi-cli = { workspace = true }
 kimi-harness = { workspace = true }
 
 [project.scripts]
-kimi = "kimi_cli.__main__:main"
-kimi-cli = "kimi_cli.__main__:main"
 kh = "kimi_cli.__main__:main"
 kimi-harness = "kimi_cli.__main__:main"
 

@@ -26,7 +26,7 @@ LATEST_VERSION_URL = f"{BASE_URL}/latest"
 INSTALL_DIR = Path.home() / ".local" / "bin"
 
 # Upgrade command shown in toast notifications. Can be overridden by wrappers
-UPGRADE_COMMAND = "uv tool upgrade kimi-cli"
+UPGRADE_COMMAND = "uv tool upgrade kimi-harness"
 
 
 class UpdateResult(Enum):
@@ -273,7 +273,7 @@ async def _do_update(*, print: bool, check_only: bool) -> UpdateResult:
         filename = f"kimi-{latest_version}-{target}.tar.gz"
         download_url = f"{BASE_URL}/{latest_version}/{filename}"
 
-        with tempfile.TemporaryDirectory(prefix="kimi-cli-") as tmpdir:
+        with tempfile.TemporaryDirectory(prefix="kh-") as tmpdir:
             tar_path = os.path.join(tmpdir, filename)
 
             logger.info("Downloading from {download_url}...", download_url=download_url)
@@ -304,12 +304,12 @@ async def _do_update(*, print: bool, check_only: bool) -> UpdateResult:
                     tar.extractall(tmpdir)
                 binary_path = None
                 for root, _, files in os.walk(tmpdir):
-                    if "kimi" in files:
-                        binary_path = os.path.join(root, "kimi")
+                    if "kh" in files:
+                        binary_path = os.path.join(root, "kh")
                         break
                 if not binary_path:
-                    logger.error("Binary 'kimi' not found in archive.")
-                    _print("[red]Binary 'kimi' not found in archive.[/red]")
+                    logger.error("Binary 'kh' not found in archive.")
+                    _print("[red]Binary 'kh' not found in archive.[/red]")
                     return UpdateResult.FAILED
             except Exception:
                 logger.exception("Failed to extract archive:")
@@ -317,7 +317,7 @@ async def _do_update(*, print: bool, check_only: bool) -> UpdateResult:
                 return UpdateResult.FAILED
 
             INSTALL_DIR.mkdir(parents=True, exist_ok=True)
-            dest_path = INSTALL_DIR / "kimi"
+            dest_path = INSTALL_DIR / "kh"
             logger.info("Installing to {dest_path}...", dest_path=dest_path)
             _print("[grey50]Installing...[/grey50]")
 
