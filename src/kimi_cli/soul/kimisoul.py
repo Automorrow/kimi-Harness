@@ -533,6 +533,9 @@ class KimiSoul:
             self._apply_harness_capabilities(
                 memory="global",
             )
+            # 开启循环模式：魔法词激活时自动启用 ralph_loop
+            # Agent 会自动反复执行直到任务完成或达到最大轮次
+            self._loop_control.max_ralph_iterations = 20
 
         if get_current_approval_source_or_none() is None:
             approval_source_token = set_current_approval_source(

@@ -1,7 +1,9 @@
 """Harness 魔法词检测与处理.
 
 当用户输入中包含 ``harness`` 或 ``hns`` 时，
-自动启用 Harness 能力（memory=global, teams）。
+自动启用 Harness 能力（memory, teams）和循环模式（loop）。
+
+循环模式下 Agent 会自动反复执行任务直到完成或达到最大轮次（默认 20）。
 """
 
 from __future__ import annotations

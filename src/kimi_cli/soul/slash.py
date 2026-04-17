@@ -305,6 +305,23 @@ def _require_memory_manager(soul: KimiSoul):
 
 
 @registry.command
+async def loop(soul: KimiSoul, args: str):
+    """Control automated loop. Usage: /loop [off|status]"""
+    subcmd = args.strip().lower()
+    if subcmd in ("off", "stop"):
+        soul._loop_control.max_ralph_iterations = 0
+        wire_send(TextPart(text="Loop disabled."))
+    elif subcmd == "status":
+        active = soul._loop_control.max_ralph_iterations != 0
+        if active:
+            wire_send(TextPart(text=f"Loop: active (max={soul._loop_control.max_ralph_iterations})"))
+        else:
+            wire_send(TextPart(text="Loop: inactive"))
+    else:
+        wire_send(TextPart(text="Usage: /loop [off|status]\nLoop is auto-enabled when using 'hns' magic word."))
+
+
+@registry.command
 async def memory(soul: KimiSoul, args: str):
     """Manage persistent memory. Subcommands: list, show, add, remove"""
     parts = args.strip().split(maxsplit=1)
