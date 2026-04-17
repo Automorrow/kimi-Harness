@@ -85,7 +85,7 @@ jobs:
           version: "0.8.5"
 
       - name: Set up Node.js (web build)
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: "20"
           cache: "npm"
@@ -491,7 +491,7 @@ jobs:
           version: "0.8.5"
 
       - name: Set up Node.js (web build)
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: "20"
           cache: "npm"
