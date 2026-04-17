@@ -14,7 +14,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
-from kosong.message import Message
+from kosong.message import Message, TextPart
 
 from kimi_cli.soul.dynamic_injection import DynamicInjection, DynamicInjectionProvider
 
@@ -107,7 +107,7 @@ class MemoryInjectionProvider(DynamicInjectionProvider):
                 continue
             text = ""
             for part in msg.content:
-                if hasattr(part, "text") and part.text:
+                if isinstance(part, TextPart) and part.text:
                     text += part.text
             # Skip system-reminder injections (they are not real user queries)
             if text and not text.strip().startswith("<system-reminder>"):

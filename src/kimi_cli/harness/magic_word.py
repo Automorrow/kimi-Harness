@@ -10,9 +10,10 @@ import re
 from dataclasses import dataclass
 
 # 匹配独立单词 "harness" 或 "hns"
-# 使用 word boundary 确保不会误匹配 "harnessing" 等派生词
+# 使用负向回顾/前瞻确保不匹配 "harnessing" 等派生词
+# 同时兼容中文紧邻（如 "harness中文"）
 _MAGIC_WORD_PATTERN = re.compile(
-    r"\b(?:harness|hns)\b",
+    r"(?<![a-zA-Z])(?:harness|hns)(?![a-zA-Z])",
     re.IGNORECASE,
 )
 

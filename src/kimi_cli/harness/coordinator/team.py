@@ -488,7 +488,7 @@ _DEFAULT_PHASES: list[OrchestrationPhase] = [
             "Task: {task}"
         ),
         strategy="broadcast",
-        agent_filter="explorer",
+        agent_filter="explore",
     ),
     OrchestrationPhase(
         name="plan",
@@ -509,7 +509,7 @@ _DEFAULT_PHASES: list[OrchestrationPhase] = [
             "Plan:\n{previous_results}"
         ),
         strategy="broadcast",
-        agent_filter="worker",
+        agent_filter="coder",
     ),
     OrchestrationPhase(
         name="review",
