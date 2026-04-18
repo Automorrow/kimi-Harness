@@ -26,7 +26,7 @@ LATEST_VERSION_URL = f"{BASE_URL}/latest"
 INSTALL_DIR = Path.home() / ".local" / "bin"
 
 # Upgrade command shown in toast notifications. Can be overridden by wrappers
-UPGRADE_COMMAND = "uv tool upgrade kimi-cli"
+UPGRADE_COMMAND = "uv tool upgrade kimi-harness"
 
 
 class UpdateResult(Enum):

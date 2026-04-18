@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 def get_version() -> str:
     from importlib import metadata
 
-    return metadata.version("kimi-cli")
+    return metadata.version("kimi-harness")
 
 
 @cache
