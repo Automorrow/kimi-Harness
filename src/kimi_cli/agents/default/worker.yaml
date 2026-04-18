@@ -1,0 +1,9 @@
+name: worker
+description: Implementation-focused sub-agent with read/write access
+when_to_use: "When the leader needs to implement code changes, write files, or execute specific coding tasks"
+default_model: null
+tool_policy:
+  read_only: false
+  allowed_tools: []
+  denied_tools: []
+supports_background: true

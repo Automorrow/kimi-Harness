@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import time
 import uuid
 from collections.abc import Awaitable, Callable, Sequence
@@ -61,6 +62,7 @@ from kimi_cli.soul.dynamic_injection import (
 )
 from kimi_cli.soul.dynamic_injections.plan_mode import PlanModeInjectionProvider
 from kimi_cli.soul.dynamic_injections.yolo_mode import YoloModeInjectionProvider
+from kimi_cli.soul.dynamic_injections.memory import MemoryInjectionProvider
 from kimi_cli.soul.message import check_message, system, system_reminder, tool_result_to_message
 from kimi_cli.soul.slash import registry as soul_slash_registry
 from kimi_cli.soul.toolset import KimiToolset
@@ -160,6 +162,7 @@ class KimiSoul:
         self._injection_providers: list[DynamicInjectionProvider] = [
             PlanModeInjectionProvider(),
             YoloModeInjectionProvider(),
+            MemoryInjectionProvider(),
         ]
         self._hook_engine: HookEngine = HookEngine()
         self._stop_hook_active: bool = False
@@ -208,6 +211,44 @@ class KimiSoul:
     def add_injection_provider(self, provider: DynamicInjectionProvider) -> None:
         """Register an additional dynamic injection provider."""
         self._injection_providers.append(provider)
+
+    def _apply_harness_capabilities(self) -> None:
+        """Dynamically enable MemoryManager and TeamCoordinator on magic word detection."""
+        runtime = self._agent.runtime
+        if runtime.memory_manager is not None:
+            return  # Already initialized (idempotent)
+
+        from kimi_cli.harness.memory.manager import MemoryManager
+        from kimi_cli.harness.coordinator.team import TeamCoordinator
+
+        work_dir = runtime.session.work_dir
+        share_dir = None
+        # Try to get share_dir from config
+        try:
+            from kimi_cli.share import get_share_dir
+            share_dir = str(get_share_dir())
+        except Exception:
+            pass
+
+        runtime.memory_manager = MemoryManager(work_dir=work_dir, share_dir=share_dir)
+        runtime.team_coordinator = TeamCoordinator(work_dir=work_dir)
+
+        # Register harness tools
+        from kimi_cli.tools.memory import SaveMemory, SearchMemory
+        from kimi_cli.tools.team import (
+            CreateTeam, AddTeamMember, DispatchTask, OrchestrateTask,
+            BroadcastMessage, ListTeams,
+        )
+
+        toolset = self._agent.toolset
+        if isinstance(toolset, KimiToolset):
+            for tool_cls in [SaveMemory, SearchMemory, CreateTeam, AddTeamMember,
+                             DispatchTask, OrchestrateTask, BroadcastMessage, ListTeams]:
+                tool = tool_cls()
+                if toolset.find(tool.name) is None:
+                    toolset.add(tool)
+
+        logger.info("Harness capabilities enabled: memory + teams")
 
     async def _collect_injections(self) -> list[DynamicInjection]:
         """Collect dynamic injections from all registered providers."""
@@ -466,6 +507,17 @@ class KimiSoul:
         approval_source_token = None
         turn_started = False
         turn_finished = False
+
+        # --- Harness magic word detection ---
+        if isinstance(user_input, str):
+            from kimi_cli.harness.magic_word import detect_magic_word
+            result = detect_magic_word(user_input)
+            if result.detected:
+                user_input = result.cleaned_input or "hi"
+                self._apply_harness_capabilities()
+                self._max_ralph_iterations = 20
+                logger.info("Harness magic word detected, capabilities enabled")
+
         if get_current_approval_source_or_none() is None:
             approval_source_token = set_current_approval_source(
                 ApprovalSource(kind="foreground_turn", id=uuid.uuid4().hex)

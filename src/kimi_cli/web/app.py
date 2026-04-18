@@ -28,6 +28,7 @@ from kimi_cli.utils.server import (
 )
 from kimi_cli.web.api import (
     config_router,
+    harness_router,
     open_in_router,
     sessions_router,
     work_dirs_router,
@@ -202,6 +203,7 @@ def create_app(
     application.include_router(config_router)
     application.include_router(sessions_router)
     application.include_router(work_dirs_router)
+    application.include_router(harness_router, prefix="/api/harness", tags=["harness"])
     if not restrict_sensitive_apis:
         application.include_router(open_in_router)
 

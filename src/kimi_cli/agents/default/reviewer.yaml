@@ -1,0 +1,9 @@
+name: reviewer
+description: Review-focused sub-agent with read-only access for code review
+when_to_use: "When the leader needs a code review, quality check, or audit of existing code"
+default_model: null
+tool_policy:
+  read_only: true
+  allowed_tools: []
+  denied_tools: []
+supports_background: true
