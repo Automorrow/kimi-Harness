@@ -218,42 +218,43 @@ class KimiSoul:
         if runtime.memory_manager is not None:
             return  # Already initialized (idempotent)
 
-        from kimi_cli.harness.memory.manager import MemoryManager
-        from kimi_cli.harness.coordinator.team import TeamCoordinator
-
-        work_dir = runtime.session.work_dir
-        share_dir = None
-        # Try to get share_dir from config
         try:
-            from kimi_cli.share import get_share_dir
-            share_dir = str(get_share_dir())
-        except Exception:
-            pass
+            from kimi_cli.harness.memory.manager import MemoryManager
+            from kimi_cli.harness.coordinator.team import TeamCoordinator
 
-        runtime.memory_manager = MemoryManager(work_dir=work_dir, share_dir=share_dir)
-        runtime.team_coordinator = TeamCoordinator(work_dir=work_dir)
+            work_dir = runtime.session.work_dir
+            share_dir = None
+            try:
+                from kimi_cli.share import get_share_dir
+                share_dir = str(get_share_dir())
+            except Exception:
+                pass
 
-        # Register runtime reference so harness tools can access it
-        from kimi_cli.harness._state import set_harness_runtime
+            runtime.memory_manager = MemoryManager(work_dir=work_dir, share_dir=share_dir)
+            runtime.team_coordinator = TeamCoordinator(work_dir=work_dir)
 
-        set_harness_runtime(runtime)
+            # Register runtime reference so harness tools can access it
+            from kimi_cli.harness._state import set_harness_runtime
+            set_harness_runtime(runtime)
 
-        # Register harness tools
-        from kimi_cli.tools.memory import SaveMemory, SearchMemory
-        from kimi_cli.tools.team import (
-            CreateTeam, AddTeamMember, DispatchTask, OrchestrateTask,
-            BroadcastMessage, ListTeams,
-        )
+            # Register harness tools
+            from kimi_cli.tools.memory import SaveMemory, SearchMemory
+            from kimi_cli.tools.team import (
+                CreateTeam, AddTeamMember, DispatchTask, OrchestrateTask,
+                BroadcastMessage, ListTeams,
+            )
 
-        toolset = self._agent.toolset
-        if isinstance(toolset, KimiToolset):
-            for tool_cls in [SaveMemory, SearchMemory, CreateTeam, AddTeamMember,
-                             DispatchTask, OrchestrateTask, BroadcastMessage, ListTeams]:
-                tool = tool_cls()
-                if toolset.find(tool.name) is None:
-                    toolset.add(tool)
+            toolset = self._agent.toolset
+            if isinstance(toolset, KimiToolset):
+                for tool_cls in [SaveMemory, SearchMemory, CreateTeam, AddTeamMember,
+                                 DispatchTask, OrchestrateTask, BroadcastMessage, ListTeams]:
+                    tool = tool_cls()
+                    if toolset.find(tool.name) is None:
+                        toolset.add(tool)
 
-        logger.info("Harness capabilities enabled: memory + teams")
+            logger.info("Harness capabilities enabled: memory + teams")
+        except Exception as e:
+            logger.error(f"Failed to enable harness capabilities: {e}", exc_info=True)
 
     async def _collect_injections(self) -> list[DynamicInjection]:
         """Collect dynamic injections from all registered providers."""
