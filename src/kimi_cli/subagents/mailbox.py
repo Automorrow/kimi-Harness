@@ -2,14 +2,17 @@
 
 from __future__ import annotations
 
-import fcntl
 import json
-import msvcrt
 import os
 import time
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
+
+if os.name == "nt":
+    import msvcrt
+else:
+    import fcntl
 from pathlib import Path
 from typing import Any
 
