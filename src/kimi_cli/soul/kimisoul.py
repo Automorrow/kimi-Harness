@@ -214,8 +214,11 @@ class KimiSoul:
 
     def _apply_harness_capabilities(self) -> None:
         """Dynamically enable MemoryManager and TeamCoordinator on magic word detection."""
+        import sys as _sys
+        print("[HARNESS DEBUG] _apply_harness_capabilities() called", file=_sys.stderr, flush=True)
         runtime = self._agent.runtime
         if runtime.memory_manager is not None:
+            print("[HARNESS DEBUG] Already initialized, skipping", file=_sys.stderr, flush=True)
             return  # Already initialized (idempotent)
 
         try:
@@ -253,8 +256,10 @@ class KimiSoul:
                         toolset.add(tool)
 
             logger.info("Harness capabilities enabled: memory + teams")
+            print("[HARNESS DEBUG] Success!", file=_sys.stderr, flush=True)
         except Exception as e:
             logger.error(f"Failed to enable harness capabilities: {e}", exc_info=True)
+            print(f"[HARNESS DEBUG] FAILED: {e}", file=_sys.stderr, flush=True)
 
     async def _collect_injections(self) -> list[DynamicInjection]:
         """Collect dynamic injections from all registered providers."""
@@ -516,12 +521,17 @@ class KimiSoul:
 
         # --- Harness magic word detection ---
         if isinstance(user_input, str):
+            import sys as _sys
+            _input_lower = user_input.lower()
+            if "harness" in _input_lower or "hns" in _input_lower:
+                print(f"[HARNESS DEBUG] Magic word detected in input: {user_input[:80]}", file=_sys.stderr, flush=True)
             from kimi_cli.harness.magic_word import detect_magic_word
             result = detect_magic_word(user_input)
             if result.detected:
                 user_input = result.cleaned_input or "hi"
                 self._apply_harness_capabilities()
                 self._max_ralph_iterations = 20
+                print("[HARNESS DEBUG] Capabilities enabled, loop set to 20", file=_sys.stderr, flush=True)
                 logger.info("Harness magic word detected, capabilities enabled")
 
         if get_current_approval_source_or_none() is None:
