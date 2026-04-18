@@ -233,6 +233,11 @@ class KimiSoul:
         runtime.memory_manager = MemoryManager(work_dir=work_dir, share_dir=share_dir)
         runtime.team_coordinator = TeamCoordinator(work_dir=work_dir)
 
+        # Register runtime reference so harness tools can access it
+        from kimi_cli.harness._state import set_harness_runtime
+
+        set_harness_runtime(runtime)
+
         # Register harness tools
         from kimi_cli.tools.memory import SaveMemory, SearchMemory
         from kimi_cli.tools.team import (
