@@ -14,7 +14,26 @@ if TYPE_CHECKING:
 def get_version() -> str:
     from importlib import metadata
 
-    return metadata.version("kimi-cli")
+    try:
+        return metadata.version("kimi-cli")
+    except metadata.PackageNotFoundError:
+        try:
+            return metadata.version("kimi-harness")
+        except metadata.PackageNotFoundError:
+            # Fallback to pyproject.toml or unknown
+            from pathlib import Path
+            import tomlkit
+            
+            pyproject_path = Path(__file__).parent.parent.parent / "pyproject.toml"
+            if pyproject_path.exists():
+                try:
+                    with open(pyproject_path, "r") as f:
+                        pyproject = tomlkit.load(f)
+                    return str(pyproject["project"]["version"])
+                except Exception:
+                    pass
+            
+            return "unknown"
 
 
 @cache
