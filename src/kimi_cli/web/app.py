@@ -55,6 +55,17 @@ get_scalar_api_reference = cast(  # pyright: ignore[reportUnknownMemberType]
 
 # Constants
 STATIC_DIR = Path(__file__).parent / "static"
+if not STATIC_DIR.exists():
+    # When installed via `uv tool install .` from source, uv_build may not
+    # include non-Python files in the wheel. Fall back to the source repo.
+    import subprocess
+    try:
+        _repo = subprocess.check_output(["git", "rev-parse", "--show-toplevel"], stderr=subprocess.DEVNULL, text=True).strip()
+        _fallback = Path(_repo) / "src" / "kimi_cli" / "web" / "static"
+        if _fallback.exists():
+            STATIC_DIR = _fallback
+    except Exception:
+        pass
 GZIP_MINIMUM_SIZE = 1024
 GZIP_COMPRESSION_LEVEL = 6
 DEFAULT_PORT = 5494
