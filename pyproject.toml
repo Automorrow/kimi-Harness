@@ -56,7 +56,10 @@ build-backend = "uv_build"
 [tool.uv.build-backend]
 module-name = "kimi_cli"
 source-exclude = ["examples/**/*", "tests/**/*", "src/kimi_cli/deps/**/*"]
-source-include = ["src/kimi_cli/web/static/**/*"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/kimi_cli"]
+include = ["src/kimi_cli/web/static/**/*"]
 
 [tool.uv.workspace]
 members = [
