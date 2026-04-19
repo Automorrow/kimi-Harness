@@ -55,6 +55,7 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/kimi_cli"]
+artifacts = ["src/kimi_cli/web/static/**/*"]
 
 [tool.uv.workspace]
 members = [
